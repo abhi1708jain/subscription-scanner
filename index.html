@@ -81,20 +81,78 @@
             const [error, setError] = useState(null);
             const [showJson, setShowJson] = useState(false);
 
-            const serviceIcons = {
-                'Netflix': '🎬',
-                'Spotify': '🎵',
-                'Amazon Prime': '📦',
-                'Anthropic': '🤖',
-                'ChatGPT': '💬'
+            const getServiceIcon = (serviceName) => {
+                const icons = {
+                    // Streaming
+                    'Netflix': '🎬', 'Hulu': '📺', 'Disney+': '🏰', 'HBO Max': '🎭', 'Amazon Prime Video': '📺',
+                    'Peacock': '🦚', 'Paramount+': '⛰️', 'Apple TV+': '📱', 'Discovery+': '🔍', 'ESPN+': '⚽',
+                    'YouTube Premium': '▶️', 'YouTube TV': '📺', 'Sling TV': '📡', 'FuboTV': '⚽', 'Philo': '📺',
+                    'Showtime': '🎬', 'Starz': '⭐', 'Crunchyroll': '🍜',
+                    // Music
+                    'Spotify': '🎵', 'Apple Music': '🎵', 'Amazon Music': '🎵', 'YouTube Music': '🎶',
+                    'Tidal': '🌊', 'Pandora': '📻', 'SiriusXM': '📻', 'Deezer': '🎧',
+                    // News
+                    'New York Times': '📰', 'Wall Street Journal': '📊', 'Washington Post': '📰',
+                    'The Athletic': '⚽', 'Medium': '📝', 'Substack': '📧',
+                    // Software
+                    'Microsoft 365': '💼', 'Google Workspace': '💼', 'Adobe Creative Cloud': '🎨',
+                    'Dropbox': '📦', 'iCloud+': '☁️', 'Evernote': '📝', 'Notion': '📝',
+                    'Grammarly': '✍️', 'Canva Pro': '🎨',
+                    // Security
+                    'LastPass': '🔐', '1Password': '🔑', 'Dashlane': '🔐', 'NordVPN': '🛡️',
+                    'ExpressVPN': '🛡️', 'Norton': '🛡️', 'McAfee': '🛡️',
+                    // AI
+                    'ChatGPT Plus': '💬', 'Claude Pro': '🤖', 'GitHub Copilot': '👨‍💻',
+                    'Midjourney': '🎨', 'Jasper': '✨',
+                    // Fitness
+                    'Peloton': '🚴', 'Apple Fitness+': '💪', 'Beachbody': '🏋️', 'Strava': '🏃',
+                    'MyFitnessPal': '🥗', 'Headspace': '🧘', 'Calm': '😌', 'Noom': '🍎',
+                    // Food
+                    'HelloFresh': '🍽️', 'Blue Apron': '🍽️', 'Home Chef': '👨‍🍳', 'ButcherBox': '🥩',
+                    'Daily Harvest': '🥬', 'Factor': '🍱', 'Freshly': '🍲',
+                    // Gaming
+                    'Xbox Game Pass': '🎮', 'PlayStation Plus': '🎮', 'Nintendo Switch Online': '🎮',
+                    'EA Play': '🎮', 'Apple Arcade': '🎮',
+                    // Amazon
+                    'Amazon Prime': '📦', 'Audible': '🎧', 'Kindle Unlimited': '📚',
+                    // Communication
+                    'Zoom': '💻', 'Slack': '💬', 'Discord Nitro': '🎮', 'Telegram Premium': '✈️',
+                    // Storage
+                    'Google Drive': '☁️', 'OneDrive': '☁️', 'Box': '📦',
+                    // Shopping
+                    'Instacart+': '🛒', 'DoorDash DashPass': '🍕', 'Uber One': '🚗',
+                    'Walmart+': '🛒', 'Target Circle 360': '🎯',
+                    // Professional
+                    'LinkedIn Premium': '💼', 'Coursera Plus': '🎓', 'Udemy': '📚',
+                    'MasterClass': '🎓', 'Skillshare': '🎨',
+                    // Dating
+                    'Tinder': '❤️', 'Bumble': '🐝', 'Hinge': '💕', 'Match.com': '💑'
+                };
+                return icons[serviceName] || '📱';
             };
 
-            const serviceColors = {
-                'Netflix': 'from-red-500 to-red-600',
-                'Spotify': 'from-green-500 to-green-600',
-                'Amazon Prime': 'from-blue-500 to-blue-600',
-                'Anthropic': 'from-purple-500 to-purple-600',
-                'ChatGPT': 'from-teal-500 to-teal-600'
+            const getServiceColor = (serviceName) => {
+                // Categorize by type
+                const streaming = ['Netflix', 'Hulu', 'Disney+', 'HBO Max', 'Amazon Prime Video', 'Peacock', 'Paramount+', 'Apple TV+', 'Discovery+', 'ESPN+', 'YouTube Premium', 'YouTube TV', 'Sling TV', 'FuboTV', 'Philo', 'Showtime', 'Starz', 'Crunchyroll'];
+                const music = ['Spotify', 'Apple Music', 'Amazon Music', 'YouTube Music', 'Tidal', 'Pandora', 'SiriusXM', 'Deezer'];
+                const news = ['New York Times', 'Wall Street Journal', 'Washington Post', 'The Athletic', 'Medium', 'Substack'];
+                const software = ['Microsoft 365', 'Google Workspace', 'Adobe Creative Cloud', 'Dropbox', 'iCloud+', 'Evernote', 'Notion', 'Grammarly', 'Canva Pro'];
+                const security = ['LastPass', '1Password', 'Dashlane', 'NordVPN', 'ExpressVPN', 'Norton', 'McAfee'];
+                const ai = ['ChatGPT Plus', 'Claude Pro', 'GitHub Copilot', 'Midjourney', 'Jasper'];
+                const fitness = ['Peloton', 'Apple Fitness+', 'Beachbody', 'Strava', 'MyFitnessPal', 'Headspace', 'Calm', 'Noom'];
+                const food = ['HelloFresh', 'Blue Apron', 'Home Chef', 'ButcherBox', 'Daily Harvest', 'Factor', 'Freshly'];
+                const gaming = ['Xbox Game Pass', 'PlayStation Plus', 'Nintendo Switch Online', 'EA Play', 'Apple Arcade'];
+                
+                if (streaming.includes(serviceName)) return 'from-red-500 to-red-600';
+                if (music.includes(serviceName)) return 'from-green-500 to-green-600';
+                if (news.includes(serviceName)) return 'from-gray-600 to-gray-700';
+                if (software.includes(serviceName)) return 'from-blue-500 to-blue-600';
+                if (security.includes(serviceName)) return 'from-yellow-500 to-yellow-600';
+                if (ai.includes(serviceName)) return 'from-purple-500 to-purple-600';
+                if (fitness.includes(serviceName)) return 'from-orange-500 to-orange-600';
+                if (food.includes(serviceName)) return 'from-green-600 to-green-700';
+                if (gaming.includes(serviceName)) return 'from-indigo-500 to-indigo-600';
+                return 'from-teal-500 to-teal-600';
             };
 
             const handleSignIn = () => {
@@ -153,11 +211,132 @@
                 setSubscriptions([]);
 
                 const services = [
+                    // Streaming Video
                     { name: 'Netflix', queries: ['from:info@account.netflix.com receipt', 'from:netflix.com payment'] },
+                    { name: 'Hulu', queries: ['from:hulu.com receipt', 'from:hulu.com "Your receipt"'] },
+                    { name: 'Disney+', queries: ['from:disney+ receipt', 'from:disneyplus.com payment'] },
+                    { name: 'HBO Max', queries: ['from:hbomax.com receipt', 'from:max.com payment'] },
+                    { name: 'Amazon Prime Video', queries: ['from:amazon.com "Prime Video" payment', 'from:primevideo.com'] },
+                    { name: 'Peacock', queries: ['from:peacocktv.com receipt', 'from:peacock payment'] },
+                    { name: 'Paramount+', queries: ['from:paramount+ receipt', 'from:paramountplus.com payment'] },
+                    { name: 'Apple TV+', queries: ['from:apple.com "Apple TV+" receipt'] },
+                    { name: 'Discovery+', queries: ['from:discoveryplus.com receipt'] },
+                    { name: 'ESPN+', queries: ['from:espn.com receipt', 'from:espnplus payment'] },
+                    { name: 'YouTube Premium', queries: ['from:youtube.com receipt "Premium"', 'from:google.com "YouTube Premium"'] },
+                    { name: 'YouTube TV', queries: ['from:youtube.com "YouTube TV" receipt'] },
+                    { name: 'Sling TV', queries: ['from:sling.com receipt'] },
+                    { name: 'FuboTV', queries: ['from:fubo.tv receipt'] },
+                    { name: 'Philo', queries: ['from:philo.com receipt'] },
+                    { name: 'Showtime', queries: ['from:showtime.com receipt'] },
+                    { name: 'Starz', queries: ['from:starz.com receipt'] },
+                    { name: 'Crunchyroll', queries: ['from:crunchyroll.com receipt'] },
+                    
+                    // Music Streaming
                     { name: 'Spotify', queries: ['from:spotify.com receipt', 'from:spotify.com payment confirmation'] },
+                    { name: 'Apple Music', queries: ['from:apple.com "Apple Music" receipt'] },
+                    { name: 'Amazon Music', queries: ['from:amazon.com "Music Unlimited" receipt'] },
+                    { name: 'YouTube Music', queries: ['from:youtube.com "YouTube Music" receipt'] },
+                    { name: 'Tidal', queries: ['from:tidal.com receipt'] },
+                    { name: 'Pandora', queries: ['from:pandora.com receipt'] },
+                    { name: 'SiriusXM', queries: ['from:siriusxm.com receipt'] },
+                    { name: 'Deezer', queries: ['from:deezer.com receipt'] },
+                    
+                    // News & Publications
+                    { name: 'New York Times', queries: ['from:nytimes.com receipt', 'from:nyt.com payment'] },
+                    { name: 'Wall Street Journal', queries: ['from:wsj.com receipt'] },
+                    { name: 'Washington Post', queries: ['from:washingtonpost.com receipt'] },
+                    { name: 'The Athletic', queries: ['from:theathletic.com receipt'] },
+                    { name: 'Medium', queries: ['from:medium.com "Membership" receipt'] },
+                    { name: 'Substack', queries: ['from:substack.com receipt'] },
+                    
+                    // Software & Productivity
+                    { name: 'Microsoft 365', queries: ['from:microsoft.com "Microsoft 365" receipt', 'from:office.com receipt'] },
+                    { name: 'Google Workspace', queries: ['from:google.com "Google Workspace" receipt'] },
+                    { name: 'Adobe Creative Cloud', queries: ['from:adobe.com receipt', 'from:adobe.com "Creative Cloud"'] },
+                    { name: 'Dropbox', queries: ['from:dropbox.com receipt'] },
+                    { name: 'iCloud+', queries: ['from:apple.com "iCloud" receipt'] },
+                    { name: 'Evernote', queries: ['from:evernote.com receipt'] },
+                    { name: 'Notion', queries: ['from:notion.so receipt'] },
+                    { name: 'Grammarly', queries: ['from:grammarly.com receipt'] },
+                    { name: 'Canva Pro', queries: ['from:canva.com receipt'] },
+                    
+                    // Password Managers & Security
+                    { name: 'LastPass', queries: ['from:lastpass.com receipt'] },
+                    { name: '1Password', queries: ['from:1password.com receipt'] },
+                    { name: 'Dashlane', queries: ['from:dashlane.com receipt'] },
+                    { name: 'NordVPN', queries: ['from:nordvpn.com receipt'] },
+                    { name: 'ExpressVPN', queries: ['from:expressvpn.com receipt'] },
+                    { name: 'Norton', queries: ['from:norton.com receipt'] },
+                    { name: 'McAfee', queries: ['from:mcafee.com receipt'] },
+                    
+                    // AI & Tech Tools
+                    { name: 'ChatGPT Plus', queries: ['from:openai.com receipt', 'from:openai.com "ChatGPT Plus"'] },
+                    { name: 'Claude Pro', queries: ['from:anthropic.com payment', 'from:anthropic.com invoice'] },
+                    { name: 'GitHub Copilot', queries: ['from:github.com "Copilot" receipt'] },
+                    { name: 'Midjourney', queries: ['from:midjourney.com receipt'] },
+                    { name: 'Jasper', queries: ['from:jasper.ai receipt'] },
+                    
+                    // Fitness & Health
+                    { name: 'Peloton', queries: ['from:onepeloton.com receipt'] },
+                    { name: 'Apple Fitness+', queries: ['from:apple.com "Fitness+" receipt'] },
+                    { name: 'Beachbody', queries: ['from:beachbody.com receipt'] },
+                    { name: 'Strava', queries: ['from:strava.com receipt'] },
+                    { name: 'MyFitnessPal', queries: ['from:myfitnesspal.com receipt'] },
+                    { name: 'Headspace', queries: ['from:headspace.com receipt'] },
+                    { name: 'Calm', queries: ['from:calm.com receipt'] },
+                    { name: 'Noom', queries: ['from:noom.com receipt'] },
+                    
+                    // Food & Meal Kits
+                    { name: 'HelloFresh', queries: ['from:hellofresh.com receipt'] },
+                    { name: 'Blue Apron', queries: ['from:blueapron.com receipt'] },
+                    { name: 'Home Chef', queries: ['from:homechef.com receipt'] },
+                    { name: 'ButcherBox', queries: ['from:butcherbox.com receipt'] },
+                    { name: 'Daily Harvest', queries: ['from:daily-harvest.com receipt'] },
+                    { name: 'Factor', queries: ['from:factor75.com receipt'] },
+                    { name: 'Freshly', queries: ['from:freshly.com receipt'] },
+                    
+                    // Gaming
+                    { name: 'Xbox Game Pass', queries: ['from:xbox.com "Game Pass" receipt'] },
+                    { name: 'PlayStation Plus', queries: ['from:playstation.com receipt'] },
+                    { name: 'Nintendo Switch Online', queries: ['from:nintendo.com receipt'] },
+                    { name: 'EA Play', queries: ['from:ea.com "EA Play" receipt'] },
+                    { name: 'Apple Arcade', queries: ['from:apple.com "Apple Arcade" receipt'] },
+                    
+                    // Amazon Services
                     { name: 'Amazon Prime', queries: ['from:amazon.com "Prime membership" charged', 'from:amazon.com "Prime Video" payment'] },
-                    { name: 'Anthropic', queries: ['from:anthropic.com payment', 'from:anthropic.com invoice'] },
-                    { name: 'ChatGPT', queries: ['from:openai.com receipt', 'from:openai.com "ChatGPT Plus"'] },
+                    { name: 'Audible', queries: ['from:audible.com receipt'] },
+                    { name: 'Kindle Unlimited', queries: ['from:amazon.com "Kindle Unlimited" receipt'] },
+                    
+                    // Communication & Collaboration
+                    { name: 'Zoom', queries: ['from:zoom.us receipt'] },
+                    { name: 'Slack', queries: ['from:slack.com receipt'] },
+                    { name: 'Discord Nitro', queries: ['from:discord.com receipt'] },
+                    { name: 'Telegram Premium', queries: ['from:telegram.org receipt'] },
+                    
+                    // Cloud Storage
+                    { name: 'Google Drive', queries: ['from:google.com "Google One" receipt'] },
+                    { name: 'OneDrive', queries: ['from:microsoft.com "OneDrive" receipt'] },
+                    { name: 'Box', queries: ['from:box.com receipt'] },
+                    
+                    // E-commerce & Shopping
+                    { name: 'Instacart+', queries: ['from:instacart.com "Instacart+" receipt'] },
+                    { name: 'DoorDash DashPass', queries: ['from:doordash.com "DashPass" receipt'] },
+                    { name: 'Uber One', queries: ['from:uber.com "Uber One" receipt'] },
+                    { name: 'Walmart+', queries: ['from:walmart.com "Walmart+" receipt'] },
+                    { name: 'Target Circle 360', queries: ['from:target.com receipt'] },
+                    
+                    // Professional Services
+                    { name: 'LinkedIn Premium', queries: ['from:linkedin.com "Premium" receipt'] },
+                    { name: 'Coursera Plus', queries: ['from:coursera.org receipt'] },
+                    { name: 'Udemy', queries: ['from:udemy.com receipt'] },
+                    { name: 'MasterClass', queries: ['from:masterclass.com receipt'] },
+                    { name: 'Skillshare', queries: ['from:skillshare.com receipt'] },
+                    
+                    // Dating Apps
+                    { name: 'Tinder', queries: ['from:tinder.com receipt'] },
+                    { name: 'Bumble', queries: ['from:bumble.com receipt'] },
+                    { name: 'Hinge', queries: ['from:hinge.co receipt'] },
+                    { name: 'Match.com', queries: ['from:match.com receipt'] },
                 ];
 
                 try {
