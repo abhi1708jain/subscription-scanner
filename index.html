@@ -17,7 +17,7 @@
         }
         
         .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
         
         .glass-effect {
@@ -34,13 +34,41 @@
             transform: translateY(-2px);
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
         }
+        
+        .scan-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: .5;
+            }
+        }
+        
+        .shimmer {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState } = React;
+        const { useState, useEffect } = React;
 
         const CLIENT_ID = '628165838054-pqhdpcokmgdonjjvom2pmqsthlsso3vv.apps.googleusercontent.com';
         const SCOPES = 'https://www.googleapis.com/auth/gmail.readonly';
@@ -57,16 +85,16 @@
                 'Netflix': '🎬',
                 'Spotify': '🎵',
                 'Amazon Prime': '📦',
-                'Claude Pro': '🤖',
-                'ChatGPT Plus': '💬'
+                'Anthropic': '🤖',
+                'ChatGPT': '💬'
             };
 
             const serviceColors = {
                 'Netflix': 'from-red-500 to-red-600',
                 'Spotify': 'from-green-500 to-green-600',
                 'Amazon Prime': 'from-blue-500 to-blue-600',
-                'Claude Pro': 'from-purple-500 to-purple-600',
-                'ChatGPT Plus': 'from-teal-500 to-teal-600'
+                'Anthropic': 'from-purple-500 to-purple-600',
+                'ChatGPT': 'from-teal-500 to-teal-600'
             };
 
             const handleSignIn = () => {
@@ -125,11 +153,11 @@
                 setSubscriptions([]);
 
                 const services = [
-                    { name: 'Netflix', queries: ['from:netflix.com receipt'] },
-                    { name: 'Spotify', queries: ['from:spotify.com receipt'] },
-                    { name: 'Amazon Prime', queries: ['from:amazon.com "Prime membership"'] },
-                    { name: 'Claude Pro', queries: ['from:anthropic.com payment'] },
-                    { name: 'ChatGPT Plus', queries: ['from:openai.com receipt'] },
+                    { name: 'Netflix', queries: ['from:info@account.netflix.com receipt', 'from:netflix.com payment'] },
+                    { name: 'Spotify', queries: ['from:spotify.com receipt', 'from:spotify.com payment confirmation'] },
+                    { name: 'Amazon Prime', queries: ['from:amazon.com "Prime membership" charged', 'from:amazon.com "Prime Video" payment'] },
+                    { name: 'Anthropic', queries: ['from:anthropic.com payment', 'from:anthropic.com invoice'] },
+                    { name: 'ChatGPT', queries: ['from:openai.com receipt', 'from:openai.com "ChatGPT Plus"'] },
                 ];
 
                 try {
@@ -268,7 +296,7 @@
                                         <button
                                             onClick={scanSubscriptions}
                                             disabled={loading}
-                                            className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 disabled:from-gray-400 disabled:to-gray-400 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+                                            className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
                                         >
                                             {loading ? (
                                                 <>
@@ -292,6 +320,14 @@
                                     {error && (
                                         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
                                             <p className="text-red-800">{error}</p>
+                                        </div>
+                                    )}
+
+                                    {loading && (
+                                        <div className="space-y-4">
+                                            {[1,2,3,4,5].map(i => (
+                                                <div key={i} className="shimmer h-20 rounded-xl"></div>
+                                            ))}
                                         </div>
                                     )}
 
@@ -352,14 +388,8 @@
                         </div>
 
                         {/* Footer */}
-                        <div className="mt-8 text-center">
-                            <p className="text-white/80 text-sm mb-3">🔒 Your data never leaves your browser • 100% secure & private</p>
-                            <div className="flex items-center justify-center gap-6 text-sm mb-3">
-                                <a href="/privacy.html" className="text-white/70 hover:text-white transition-colors">Privacy Policy</a>
-                                <span className="text-white/40">•</span>
-                                <a href="/terms.html" className="text-white/70 hover:text-white transition-colors">Terms of Service</a>
-                            </div>
-                            <p className="text-white/60 text-xs">© 2026 Aagam Technologies. All rights reserved.</p>
+                        <div className="mt-8 text-center text-white/80 text-sm">
+                            <p>🔒 Your data never leaves your browser • 100% secure & private</p>
                         </div>
                     </div>
                 </div>
