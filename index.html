@@ -87,7 +87,7 @@
                     'YouTube Premium': '▶️', 'Apple TV+': '📱', 'Paramount+': '⛰️', 'Peacock': '🦚', 'Discovery+': '🔍',
                     'Showtime': '🎬', 'Crunchyroll': '🍜',
                     'Spotify': '🎵', 'Apple Music': '🎵', 'YouTube Music': '🎶', 'Tidal': '🌊', 'Pandora': '📻', 'SiriusXM': '📻',
-                    'Microsoft 365': '💼', 'Adobe Creative Cloud': '🎨', 'Dropbox': '📦', 'iCloud+': '☁️',
+                    'Microsoft 365': '💼', 'Adobe Creative Cloud': '🎨', 'Dropbox': '📦', 'iCloud+': '☁️', 'Google One': '☁️',
                     'Grammarly': '✍️', 'Canva Pro': '🎨', 'Notion': '📝', 'Evernote': '📝', 'Zoom': '💻', 'Slack': '💬',
                     'ChatGPT': '💬', 'Anthropic': '🤖', 'GitHub Copilot': '👨‍💻', 'Midjourney': '🎨', 'Jasper': '✨',
                     'PlayStation Plus': '🎮', 'Xbox Game Pass': '🎮', 'Nintendo Switch Online': '🎮', 'EA Play': '🎮', 'Discord Nitro': '🎮',
@@ -103,7 +103,7 @@
             const getServiceColor = (serviceName) => {
                 const streaming = ['Netflix', 'Hulu', 'Disney+', 'HBO Max', 'Amazon Prime', 'YouTube Premium', 'Apple TV+', 'Paramount+', 'Peacock', 'Discovery+', 'Showtime', 'Crunchyroll'];
                 const music = ['Spotify', 'Apple Music', 'YouTube Music', 'Tidal', 'Pandora', 'SiriusXM'];
-                const software = ['Microsoft 365', 'Adobe Creative Cloud', 'Dropbox', 'iCloud+', 'Grammarly', 'Canva Pro', 'Notion', 'Evernote', 'Zoom', 'Slack'];
+                const software = ['Microsoft 365', 'Adobe Creative Cloud', 'Dropbox', 'iCloud+', 'Google One', 'Grammarly', 'Canva Pro', 'Notion', 'Evernote', 'Zoom', 'Slack'];
                 const ai = ['ChatGPT', 'Anthropic', 'GitHub Copilot', 'Midjourney', 'Jasper'];
                 const gaming = ['PlayStation Plus', 'Xbox Game Pass', 'Nintendo Switch Online', 'EA Play', 'Discord Nitro'];
                 const fitness = ['Peloton', 'Apple Fitness+', 'Headspace', 'Calm', 'Strava'];
@@ -178,82 +178,83 @@
 
                 const services = [
                     // Streaming Video (12)
-                    { name: 'Netflix', queries: ['from:netflix.com (receipt OR payment OR charged OR invoice)', 'from:paypal "You paid" "Netflix"', 'subject:Netflix from:paypal'] },
-                    { name: 'Hulu', queries: ['from:hulu.com (receipt OR payment OR charged OR invoice)', 'from:paypal "You paid" "Hulu"', 'subject:Hulu from:paypal'] },
-                    { name: 'Disney+', queries: ['from:disneyplus.com (receipt OR payment OR charged OR invoice)', 'from:paypal "You paid" "Disney"', 'subject:Disney from:paypal'] },
-                    { name: 'HBO Max', queries: ['from:hbomax.com (receipt OR payment OR charged OR invoice)', 'from:paypal "You paid" "HBO"', 'subject:HBO from:paypal'] },
-                    { name: 'Amazon Prime', queries: ['from:amazon.com "Prime membership" (charged OR payment)', 'from:paypal "You paid" "Amazon"', 'subject:Amazon from:paypal'] },
-                    { name: 'YouTube Premium', queries: ['from:youtube.com "YouTube Premium" (receipt OR payment)', 'from:paypal "You paid" "YouTube"', 'subject:YouTube from:paypal'] },
-                    { name: 'Apple TV+', queries: ['from:apple.com "Apple TV+" (receipt OR payment)', 'from:paypal "You paid" "Apple"', 'subject:Apple from:paypal'] },
-                    { name: 'Paramount+', queries: ['from:paramountplus.com (receipt OR payment)', 'from:paypal "You paid" "Paramount"', 'subject:Paramount from:paypal'] },
-                    { name: 'Peacock', queries: ['from:peacocktv.com (receipt OR payment)', 'from:paypal "You paid" "Peacock"', 'subject:Peacock from:paypal'] },
-                    { name: 'Discovery+', queries: ['from:discoveryplus.com (receipt OR payment)', 'from:paypal "You paid" "Discovery"', 'subject:Discovery from:paypal'] },
-                    { name: 'Showtime', queries: ['from:showtime.com (receipt OR payment)', 'from:paypal "You paid" "Showtime"', 'subject:Showtime from:paypal'] },
-                    { name: 'Crunchyroll', queries: ['from:crunchyroll.com (receipt OR payment)', 'from:paypal "You paid" "Crunchyroll"', 'subject:Crunchyroll from:paypal'] },
+                    { name: 'Netflix', queries: ['from:netflix.com $ (charged OR payment OR receipt)', 'from:paypal "You paid" "Netflix"', 'subject:Netflix from:paypal'] },
+                    { name: 'Hulu', queries: ['from:hulu.com $ (charged OR payment)', 'from:paypal "You paid" "Hulu"', 'subject:Hulu from:paypal'] },
+                    { name: 'Disney+', queries: ['from:disneyplus.com $ (charged OR payment)', 'from:paypal "You paid" "Disney"', 'subject:Disney from:paypal'] },
+                    { name: 'HBO Max', queries: ['from:hbomax.com $ (charged OR payment)', 'from:paypal "You paid" "HBO"', 'subject:HBO from:paypal'] },
+                    { name: 'Amazon Prime', queries: ['from:amazon.com "Prime membership" $ charged', 'from:paypal "You paid" "Amazon"', 'subject:Amazon from:paypal'] },
+                    { name: 'YouTube Premium', queries: ['from:youtube.com "YouTube Premium" $ (charged OR payment)', 'from:paypal "You paid" "YouTube"', 'subject:YouTube from:paypal'] },
+                    { name: 'Apple TV+', queries: ['from:apple.com "Apple TV+" $ (charged OR "you were charged")', 'from:paypal "You paid" "Apple TV"', 'subject:"Apple TV" from:paypal'] },
+                    { name: 'Paramount+', queries: ['from:paramountplus.com $ (charged OR payment)', 'from:paypal "You paid" "Paramount"', 'subject:Paramount from:paypal'] },
+                    { name: 'Peacock', queries: ['from:peacocktv.com $ (charged OR payment)', 'from:paypal "You paid" "Peacock"', 'subject:Peacock from:paypal'] },
+                    { name: 'Discovery+', queries: ['from:discoveryplus.com $ (charged OR payment)', 'from:paypal "You paid" "Discovery"', 'subject:Discovery from:paypal'] },
+                    { name: 'Showtime', queries: ['from:showtime.com $ (charged OR payment)', 'from:paypal "You paid" "Showtime"', 'subject:Showtime from:paypal'] },
+                    { name: 'Crunchyroll', queries: ['from:crunchyroll.com $ (charged OR payment)', 'from:paypal "You paid" "Crunchyroll"', 'subject:Crunchyroll from:paypal'] },
                     
                     // Music (6)
-                    { name: 'Spotify', queries: ['from:spotify.com (receipt OR payment OR charged)', 'from:paypal "You paid" "Spotify"', 'subject:Spotify from:paypal'] },
-                    { name: 'Apple Music', queries: ['from:apple.com "Apple Music" (receipt OR payment)', 'from:paypal "You paid" "Apple Music"', 'subject:"Apple Music" from:paypal'] },
-                    { name: 'YouTube Music', queries: ['from:youtube.com "YouTube Music" (receipt OR payment)', 'from:paypal "You paid" "YouTube Music"', 'subject:"YouTube Music" from:paypal'] },
-                    { name: 'Tidal', queries: ['from:tidal.com (receipt OR payment)', 'from:paypal "You paid" "Tidal"', 'subject:Tidal from:paypal'] },
-                    { name: 'Pandora', queries: ['from:pandora.com (receipt OR payment)', 'from:paypal "You paid" "Pandora"', 'subject:Pandora from:paypal'] },
-                    { name: 'SiriusXM', queries: ['from:siriusxm.com (receipt OR payment)', 'from:paypal "You paid" "SiriusXM"', 'subject:SiriusXM from:paypal'] },
+                    { name: 'Spotify', queries: ['from:spotify.com $ (charged OR payment OR receipt)', 'from:paypal "You paid" "Spotify"', 'subject:Spotify from:paypal'] },
+                    { name: 'Apple Music', queries: ['from:apple.com "Apple Music" $ (charged OR "you were charged")', 'from:paypal "You paid" "Apple Music"', 'subject:"Apple Music" from:paypal'] },
+                    { name: 'YouTube Music', queries: ['from:youtube.com "YouTube Music" $ (charged OR payment)', 'from:paypal "You paid" "YouTube Music"', 'subject:"YouTube Music" from:paypal'] },
+                    { name: 'Tidal', queries: ['from:tidal.com $ (charged OR payment)', 'from:paypal "You paid" "Tidal"', 'subject:Tidal from:paypal'] },
+                    { name: 'Pandora', queries: ['from:pandora.com $ (charged OR payment)', 'from:paypal "You paid" "Pandora"', 'subject:Pandora from:paypal'] },
+                    { name: 'SiriusXM', queries: ['from:siriusxm.com $ (charged OR payment)', 'from:paypal "You paid" "SiriusXM"', 'subject:SiriusXM from:paypal'] },
                     
                     // Software & Productivity (10)
-                    { name: 'Microsoft 365', queries: ['from:microsoft.com "Microsoft 365" (receipt OR payment)', 'from:paypal "You paid" "Microsoft"', 'subject:Microsoft from:paypal'] },
-                    { name: 'Adobe Creative Cloud', queries: ['from:adobe.com (receipt OR payment OR invoice)', 'from:paypal "You paid" "Adobe"', 'subject:Adobe from:paypal'] },
-                    { name: 'Dropbox', queries: ['from:dropbox.com (receipt OR payment)', 'from:paypal "You paid" "Dropbox"', 'subject:Dropbox from:paypal'] },
-                    { name: 'iCloud+', queries: ['from:apple.com "iCloud" (receipt OR payment)', 'from:paypal "You paid" "iCloud"', 'subject:iCloud from:paypal'] },
-                    { name: 'Grammarly', queries: ['from:grammarly.com (receipt OR payment)', 'from:paypal "You paid" "Grammarly"', 'subject:Grammarly from:paypal'] },
-                    { name: 'Canva Pro', queries: ['from:canva.com (receipt OR payment)', 'from:paypal "You paid" "Canva"', 'subject:Canva from:paypal'] },
-                    { name: 'Notion', queries: ['from:notion.so (receipt OR payment)', 'from:paypal "You paid" "Notion"', 'subject:Notion from:paypal'] },
-                    { name: 'Evernote', queries: ['from:evernote.com (receipt OR payment)', 'from:paypal "You paid" "Evernote"', 'subject:Evernote from:paypal'] },
-                    { name: 'Zoom', queries: ['from:zoom.us (receipt OR payment)', 'from:paypal "You paid" "Zoom"', 'subject:Zoom from:paypal'] },
-                    { name: 'Slack', queries: ['from:slack.com (receipt OR payment)', 'from:paypal "You paid" "Slack"', 'subject:Slack from:paypal'] },
+                    { name: 'Microsoft 365', queries: ['from:microsoft.com "Microsoft 365" $ (charged OR "you were charged")', 'from:paypal "You paid" "Microsoft 365"', 'subject:"Microsoft 365" from:paypal'] },
+                    { name: 'Adobe Creative Cloud', queries: ['from:adobe.com "Creative Cloud" $ (charged OR payment OR invoice)', 'from:paypal "You paid" "Adobe"', 'subject:Adobe from:paypal'] },
+                    { name: 'Dropbox', queries: ['from:dropbox.com $ (charged OR payment)', 'from:paypal "You paid" "Dropbox"', 'subject:Dropbox from:paypal'] },
+                    { name: 'iCloud+', queries: ['from:apple.com "iCloud" $ (charged OR "you were charged")', 'from:paypal "You paid" "iCloud"', 'subject:iCloud from:paypal'] },
+                    { name: 'Google One', queries: ['from:google.com "Google One" $ (charged OR "you were charged")', 'from:paypal "You paid" "Google One"', 'subject:"Google One" from:paypal'] },
+                    { name: 'Grammarly', queries: ['from:grammarly.com $ (charged OR payment)', 'from:paypal "You paid" "Grammarly"', 'subject:Grammarly from:paypal'] },
+                    { name: 'Canva Pro', queries: ['from:canva.com $ (charged OR payment)', 'from:paypal "You paid" "Canva"', 'subject:Canva from:paypal'] },
+                    { name: 'Notion', queries: ['from:notion.so $ (charged OR payment)', 'from:paypal "You paid" "Notion"', 'subject:Notion from:paypal'] },
+                    { name: 'Evernote', queries: ['from:evernote.com $ (charged OR payment)', 'from:paypal "You paid" "Evernote"', 'subject:Evernote from:paypal'] },
+                    { name: 'Zoom', queries: ['from:zoom.us $ (charged OR payment)', 'from:paypal "You paid" "Zoom"', 'subject:Zoom from:paypal'] },
+                    { name: 'Slack', queries: ['from:slack.com $ (charged OR payment)', 'from:paypal "You paid" "Slack"', 'subject:Slack from:paypal'] },
                     
                     // AI & Tech (5)
-                    { name: 'ChatGPT', queries: ['from:openai.com "ChatGPT Plus" (subscription OR payment OR $)', 'from:paypal "You paid" "OpenAI"', 'subject:OpenAI from:paypal'] },
-                    { name: 'Anthropic', queries: ['from:anthropic.com (payment OR invoice OR charged)', 'from:paypal "You paid" "Anthropic"', 'subject:Anthropic from:paypal'] },
-                    { name: 'GitHub Copilot', queries: ['from:github.com "Copilot" (receipt OR payment)', 'from:paypal "You paid" "GitHub"', 'subject:GitHub from:paypal'] },
-                    { name: 'Midjourney', queries: ['from:midjourney.com (receipt OR payment)', 'from:paypal "You paid" "Midjourney"', 'subject:Midjourney from:paypal'] },
-                    { name: 'Jasper', queries: ['from:jasper.ai (receipt OR payment)', 'from:paypal "You paid" "Jasper"', 'subject:Jasper from:paypal'] },
+                    { name: 'ChatGPT', queries: ['from:openai.com "ChatGPT Plus" $ (subscription OR payment)', 'from:paypal "You paid" "OpenAI"', 'subject:OpenAI from:paypal'] },
+                    { name: 'Anthropic', queries: ['from:anthropic.com $ (charged OR payment OR invoice)', 'from:paypal "You paid" "Anthropic"', 'subject:Anthropic from:paypal'] },
+                    { name: 'GitHub Copilot', queries: ['from:github.com "Copilot" $ (charged OR payment)', 'from:paypal "You paid" "GitHub"', 'subject:GitHub from:paypal'] },
+                    { name: 'Midjourney', queries: ['from:midjourney.com $ (charged OR payment)', 'from:paypal "You paid" "Midjourney"', 'subject:Midjourney from:paypal'] },
+                    { name: 'Jasper', queries: ['from:jasper.ai $ (charged OR payment)', 'from:paypal "You paid" "Jasper"', 'subject:Jasper from:paypal'] },
                     
                     // Gaming (5)
-                    { name: 'PlayStation Plus', queries: ['from:playstation.com (receipt OR payment)', 'from:paypal "You paid" "PlayStation"', 'subject:PlayStation from:paypal'] },
-                    { name: 'Xbox Game Pass', queries: ['from:xbox.com "Game Pass" (receipt OR payment)', 'from:paypal "You paid" "Xbox"', 'subject:Xbox from:paypal'] },
-                    { name: 'Nintendo Switch Online', queries: ['from:nintendo.com (receipt OR payment)', 'from:paypal "You paid" "Nintendo"', 'subject:Nintendo from:paypal'] },
-                    { name: 'EA Play', queries: ['from:ea.com (receipt OR payment)', 'from:paypal "You paid" "EA Play"', 'subject:"EA Play" from:paypal'] },
-                    { name: 'Discord Nitro', queries: ['from:discord.com (receipt OR payment)', 'from:paypal "You paid" "Discord"', 'subject:Discord from:paypal'] },
+                    { name: 'PlayStation Plus', queries: ['from:playstation.com $ (charged OR payment)', 'from:paypal "You paid" "PlayStation"', 'subject:PlayStation from:paypal'] },
+                    { name: 'Xbox Game Pass', queries: ['from:xbox.com "Game Pass" $ (charged OR payment)', 'from:paypal "You paid" "Xbox"', 'subject:Xbox from:paypal'] },
+                    { name: 'Nintendo Switch Online', queries: ['from:nintendo.com $ (charged OR payment)', 'from:paypal "You paid" "Nintendo"', 'subject:Nintendo from:paypal'] },
+                    { name: 'EA Play', queries: ['from:ea.com $ (charged OR payment)', 'from:paypal "You paid" "EA Play"', 'subject:"EA Play" from:paypal'] },
+                    { name: 'Discord Nitro', queries: ['from:discord.com $ (charged OR payment)', 'from:paypal "You paid" "Discord"', 'subject:Discord from:paypal'] },
                     
                     // Fitness & Health (5)
-                    { name: 'Peloton', queries: ['from:onepeloton.com (receipt OR payment)', 'from:paypal "You paid" "Peloton"', 'subject:Peloton from:paypal'] },
-                    { name: 'Apple Fitness+', queries: ['from:apple.com "Fitness+" (receipt OR payment)', 'from:paypal "You paid" "Apple Fitness"', 'subject:"Apple Fitness" from:paypal'] },
-                    { name: 'Headspace', queries: ['from:headspace.com (receipt OR payment)', 'from:paypal "You paid" "Headspace"', 'subject:Headspace from:paypal'] },
-                    { name: 'Calm', queries: ['from:calm.com (receipt OR payment)', 'from:paypal "You paid" "Calm"', 'subject:Calm from:paypal'] },
-                    { name: 'Strava', queries: ['from:strava.com (receipt OR payment)', 'from:paypal "You paid" "Strava"', 'subject:Strava from:paypal'] },
+                    { name: 'Peloton', queries: ['from:onepeloton.com $ (charged OR payment)', 'from:paypal "You paid" "Peloton"', 'subject:Peloton from:paypal'] },
+                    { name: 'Apple Fitness+', queries: ['from:apple.com "Fitness+" $ (charged OR "you were charged")', 'from:paypal "You paid" "Apple Fitness"', 'subject:"Apple Fitness" from:paypal'] },
+                    { name: 'Headspace', queries: ['from:headspace.com $ (charged OR payment)', 'from:paypal "You paid" "Headspace"', 'subject:Headspace from:paypal'] },
+                    { name: 'Calm', queries: ['from:calm.com $ (charged OR payment)', 'from:paypal "You paid" "Calm"', 'subject:Calm from:paypal'] },
+                    { name: 'Strava', queries: ['from:strava.com $ (charged OR payment)', 'from:paypal "You paid" "Strava"', 'subject:Strava from:paypal'] },
                     
                     // News & Reading (5)
-                    { name: 'New York Times', queries: ['from:nytimes.com (receipt OR payment)', 'from:paypal "You paid" "New York Times"', 'subject:"New York Times" from:paypal'] },
-                    { name: 'Wall Street Journal', queries: ['from:wsj.com (receipt OR payment)', 'from:paypal "You paid" "Wall Street Journal"', 'subject:"Wall Street Journal" from:paypal'] },
-                    { name: 'Audible', queries: ['from:audible.com (receipt OR payment)', 'from:paypal "You paid" "Audible"', 'subject:Audible from:paypal'] },
-                    { name: 'Kindle Unlimited', queries: ['from:amazon.com "Kindle Unlimited" (charged OR payment)', 'from:paypal "You paid" "Kindle"', 'subject:Kindle from:paypal'] },
-                    { name: 'Medium', queries: ['from:medium.com (receipt OR payment)', 'from:paypal "You paid" "Medium"', 'subject:Medium from:paypal'] },
+                    { name: 'New York Times', queries: ['from:nytimes.com $ (charged OR payment)', 'from:paypal "You paid" "New York Times"', 'subject:"New York Times" from:paypal'] },
+                    { name: 'Wall Street Journal', queries: ['from:wsj.com $ (charged OR payment)', 'from:paypal "You paid" "Wall Street Journal"', 'subject:"Wall Street Journal" from:paypal'] },
+                    { name: 'Audible', queries: ['from:audible.com $ (charged OR payment)', 'from:paypal "You paid" "Audible"', 'subject:Audible from:paypal'] },
+                    { name: 'Kindle Unlimited', queries: ['from:amazon.com "Kindle Unlimited" $ charged', 'from:paypal "You paid" "Kindle"', 'subject:Kindle from:paypal'] },
+                    { name: 'Medium', queries: ['from:medium.com $ (charged OR payment)', 'from:paypal "You paid" "Medium"', 'subject:Medium from:paypal'] },
                     
                     // VPN & Security (4)
-                    { name: 'NordVPN', queries: ['from:nordvpn.com (receipt OR payment)', 'from:paypal "You paid" "NordVPN"', 'subject:NordVPN from:paypal'] },
-                    { name: '1Password', queries: ['from:1password.com (receipt OR payment)', 'from:paypal "You paid" "1Password"', 'subject:1Password from:paypal'] },
-                    { name: 'LastPass', queries: ['from:lastpass.com (receipt OR payment)', 'from:paypal "You paid" "LastPass"', 'subject:LastPass from:paypal'] },
-                    { name: 'ExpressVPN', queries: ['from:expressvpn.com (receipt OR payment)', 'from:paypal "You paid" "ExpressVPN"', 'subject:ExpressVPN from:paypal'] },
+                    { name: 'NordVPN', queries: ['from:nordvpn.com $ (charged OR payment)', 'from:paypal "You paid" "NordVPN"', 'subject:NordVPN from:paypal'] },
+                    { name: '1Password', queries: ['from:1password.com $ (charged OR payment)', 'from:paypal "You paid" "1Password"', 'subject:1Password from:paypal'] },
+                    { name: 'LastPass', queries: ['from:lastpass.com $ (charged OR payment)', 'from:paypal "You paid" "LastPass"', 'subject:LastPass from:paypal'] },
+                    { name: 'ExpressVPN', queries: ['from:expressvpn.com $ (charged OR payment)', 'from:paypal "You paid" "ExpressVPN"', 'subject:ExpressVPN from:paypal'] },
                     
                     // Food & Delivery (3)
-                    { name: 'HelloFresh', queries: ['from:hellofresh.com (receipt OR payment)', 'from:paypal "You paid" "HelloFresh"', 'subject:HelloFresh from:paypal'] },
-                    { name: 'DoorDash DashPass', queries: ['from:doordash.com "DashPass" (payment OR charged)', 'from:paypal "You paid" "DoorDash"', 'subject:DoorDash from:paypal'] },
-                    { name: 'Uber One', queries: ['from:uber.com "Uber One" (payment OR charged)', 'from:paypal "You paid" "Uber"', 'subject:Uber from:paypal'] },
+                    { name: 'HelloFresh', queries: ['from:hellofresh.com $ (charged OR payment)', 'from:paypal "You paid" "HelloFresh"', 'subject:HelloFresh from:paypal'] },
+                    { name: 'DoorDash DashPass', queries: ['from:doordash.com "DashPass" $ (charged OR payment)', 'from:paypal "You paid" "DoorDash"', 'subject:DoorDash from:paypal'] },
+                    { name: 'Uber One', queries: ['from:uber.com "Uber One" $ (charged OR payment)', 'from:paypal "You paid" "Uber"', 'subject:Uber from:paypal'] },
                     
                     // Professional (3)
-                    { name: 'LinkedIn Premium', queries: ['from:linkedin.com (receipt OR payment)', 'from:paypal "You paid" "LinkedIn"', 'subject:LinkedIn from:paypal'] },
-                    { name: 'Coursera', queries: ['from:coursera.org (receipt OR payment)', 'from:paypal "You paid" "Coursera"', 'subject:Coursera from:paypal'] },
-                    { name: 'MasterClass', queries: ['from:masterclass.com (receipt OR payment)', 'from:paypal "You paid" "MasterClass"', 'subject:MasterClass from:paypal'] },
+                    { name: 'LinkedIn Premium', queries: ['from:linkedin.com "Premium" $ (charged OR payment)', 'from:paypal "You paid" "LinkedIn Premium"', 'subject:"LinkedIn Premium" from:paypal'] },
+                    { name: 'Coursera', queries: ['from:coursera.org $ (charged OR payment)', 'from:paypal "You paid" "Coursera"', 'subject:Coursera from:paypal'] },
+                    { name: 'MasterClass', queries: ['from:masterclass.com $ (charged OR payment)', 'from:paypal "You paid" "MasterClass"', 'subject:MasterClass from:paypal'] },
                 ];
 
                 try {
