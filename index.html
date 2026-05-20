@@ -1,509 +1,848 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subscription Scanner - Find Your Active Subscriptions</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-        
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        
-        .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        
-        .glass-effect {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-        
-        .service-badge {
-            transition: all 0.3s ease;
-        }
-        
-        .service-badge:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-        }
-        
-        .scan-pulse {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: .5;
-            }
-        }
-        
-        .shimmer {
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-        }
-        
-        @keyframes shimmer {
-            0% {
-                background-position: -200% 0;
-            }
-            100% {
-                background-position: 200% 0;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subscription Scanner — Find every subscription draining your bank account</title>
+<meta name="description" content="Scan your Gmail in seconds and discover every subscription you forgot about. Netflix, Spotify, Hotstar, Cred, Swiggy One and 70+ more services detected automatically.">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Plausible Analytics — replace 'findmysubscriptions.com' with your domain when ready -->
+<script defer data-domain="findmysubscriptions.com" src="https://plausible.io/js/script.tagged-events.js"></script>
+<script>
+  // Lightweight event tracker. Calls Plausible if loaded, else logs to console.
+  window.track = function(name, props) {
+    try {
+      if (window.plausible) window.plausible(name, { props: props || {} });
+      console.log('[track]', name, props || {});
+    } catch (e) { console.log('[track-err]', e); }
+  };
+</script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+body { font-family: 'Inter', sans-serif; }
+.gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.glass-effect {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+.service-badge { transition: all 0.3s ease; }
+.service-badge:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1); }
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.big-number {
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.locked-blur { filter: blur(4px); user-select: none; pointer-events: none; }
+.pro-glow { box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.2), 0 8px 24px rgba(245, 158, 11, 0.25); }
+.fade-in { animation: fadeIn 0.4s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.modal-bg { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(6px); }
+</style>
 </head>
 <body>
-    <div id="root"></div>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo, useEffect } = React;
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+const CLIENT_ID = '628165838054-pqhdpcokmgdonjjvom2pmqsthlsso3vv.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/gmail.modify';
 
-        const CLIENT_ID = '628165838054-pqhdpcokmgdonjjvom2pmqsthlsso3vv.apps.googleusercontent.com';
-        const SCOPES = 'https://www.googleapis.com/auth/gmail.readonly';
+// How many subscriptions free users see; rest are locked.
+const FREE_TIER_LIMIT = 10;
 
-        const SubscriptionScanner = () => {
-            const [isAuthenticated, setIsAuthenticated] = useState(false);
-            const [accessToken, setAccessToken] = useState(null);
-            const [subscriptions, setSubscriptions] = useState([]);
-            const [loading, setLoading] = useState(false);
-            const [error, setError] = useState(null);
-            const [showJson, setShowJson] = useState(false);
+// ---------------------------------------------------------------------------
+// SERVICES
+// ---------------------------------------------------------------------------
+const SERVICES = [
+  { name: 'Hotstar / Disney+ Hotstar', category: 'streaming_in', icon: '🏏', queries: ['from:hotstar.com', 'from:disneyplus.com Hotstar', 'from:noreply@razorpay.com Hotstar', 'from:payu Hotstar'], fallback: { amount: 299, currency: 'INR' } },
+  { name: 'JioCinema', category: 'streaming_in', icon: '🎬', queries: ['from:jiocinema.com', 'from:jio.com JioCinema'], fallback: { amount: 99, currency: 'INR' } },
+  { name: 'SonyLIV', category: 'streaming_in', icon: '📺', queries: ['from:sonyliv.com'], fallback: { amount: 299, currency: 'INR' } },
+  { name: 'Zee5', category: 'streaming_in', icon: '🎥', queries: ['from:zee5.com'], fallback: { amount: 99, currency: 'INR' } },
+  { name: 'Voot', category: 'streaming_in', icon: '📺', queries: ['from:voot.com'], fallback: { amount: 99, currency: 'INR' } },
+  { name: 'ALTBalaji', category: 'streaming_in', icon: '🎭', queries: ['from:altbalaji.com'], fallback: { amount: 100, currency: 'INR' } },
+  { name: 'MX Player Gold', category: 'streaming_in', icon: '▶️', queries: ['from:mxplayer.in'], fallback: { amount: 199, currency: 'INR' } },
+  { name: 'ErosNow', category: 'streaming_in', icon: '🎬', queries: ['from:erosnow.com'], fallback: { amount: 99, currency: 'INR' } },
+  { name: 'BookMyShow Stream', category: 'streaming_in', icon: '🎟️', queries: ['from:bookmyshow.com Stream'], fallback: { amount: 199, currency: 'INR' } },
+  { name: 'Netflix', category: 'streaming', icon: '🎬', queries: ['from:netflix.com', 'from:paypal "Netflix"'], fallback: { amount: 15.49, currency: 'USD' } },
+  { name: 'Amazon Prime', category: 'streaming', icon: '📦', queries: ['from:amazon.com Prime membership', 'from:amazon.in Prime membership'], fallback: { amount: 14.99, currency: 'USD' } },
+  { name: 'Disney+', category: 'streaming', icon: '🏰', queries: ['from:disneyplus.com -Hotstar'], fallback: { amount: 10.99, currency: 'USD' } },
+  { name: 'Hulu', category: 'streaming', icon: '📺', queries: ['from:hulu.com'], fallback: { amount: 7.99, currency: 'USD' } },
+  { name: 'HBO Max / Max', category: 'streaming', icon: '🎭', queries: ['from:hbomax.com', 'from:max.com billing'], fallback: { amount: 15.99, currency: 'USD' } },
+  { name: 'YouTube Premium', category: 'streaming', icon: '▶️', queries: ['from:youtube.com Premium'], fallback: { amount: 13.99, currency: 'USD' } },
+  { name: 'Apple TV+', category: 'streaming', icon: '📱', queries: ['subject:"Your receipt from Apple" "Apple TV"'], fallback: { amount: 9.99, currency: 'USD' } },
+  { name: 'Paramount+', category: 'streaming', icon: '⛰️', queries: ['from:paramountplus.com'], fallback: { amount: 7.99, currency: 'USD' } },
+  { name: 'Peacock', category: 'streaming', icon: '🦚', queries: ['from:peacocktv.com'], fallback: { amount: 7.99, currency: 'USD' } },
+  { name: 'Crunchyroll', category: 'streaming', icon: '🍜', queries: ['from:crunchyroll.com'], fallback: { amount: 7.99, currency: 'USD' } },
+  { name: 'Spotify', category: 'music', icon: '🎵', queries: ['from:spotify.com receipt'], fallback: { amount: 119, currency: 'INR' } },
+  { name: 'Apple Music', category: 'music', icon: '🎵', queries: ['subject:"Your receipt from Apple" "Apple Music"'], fallback: { amount: 99, currency: 'INR' } },
+  { name: 'JioSaavn', category: 'music', icon: '🎶', queries: ['from:jiosaavn.com', 'from:saavn.com'], fallback: { amount: 99, currency: 'INR' } },
+  { name: 'Wynk Music', category: 'music', icon: '🎶', queries: ['from:wynk.in'], fallback: { amount: 99, currency: 'INR' } },
+  { name: 'Gaana', category: 'music', icon: '🎶', queries: ['from:gaana.com'], fallback: { amount: 99, currency: 'INR' } },
+  { name: 'YouTube Music', category: 'music', icon: '🎶', queries: ['from:youtube.com "YouTube Music"'], fallback: { amount: 99, currency: 'INR' } },
+  { name: 'Swiggy One', category: 'food', icon: '🛵', queries: ['from:swiggy.in One', 'from:swiggy.com One'], fallback: { amount: 99, currency: 'INR' } },
+  { name: 'Zomato Gold', category: 'food', icon: '🍕', queries: ['from:zomato.com Gold'], fallback: { amount: 200, currency: 'INR' } },
+  { name: 'DoorDash DashPass', category: 'food', icon: '🥡', queries: ['from:doordash.com DashPass'], fallback: { amount: 9.99, currency: 'USD' } },
+  { name: 'Uber One', category: 'food', icon: '🚗', queries: ['from:uber.com "Uber One"'], fallback: { amount: 9.99, currency: 'USD' } },
+  { name: 'HelloFresh', category: 'food', icon: '🍽️', queries: ['from:hellofresh.com'], fallback: { amount: 10.99, currency: 'USD' } },
+  { name: 'Cred Mint / Cred Premium', category: 'fintech_in', icon: '💳', queries: ['from:cred.club Mint', 'from:cred.club Premium'], fallback: { amount: 0, currency: 'INR' } },
+  { name: 'Times Prime', category: 'fintech_in', icon: '⭐', queries: ['from:timesprime.com'], fallback: { amount: 1199, currency: 'INR' } },
+  { name: 'Tata Neu', category: 'fintech_in', icon: '🛍️', queries: ['from:tataneu.com'], fallback: { amount: 0, currency: 'INR' } },
+  { name: 'Flipkart Plus / VIP', category: 'fintech_in', icon: '🛒', queries: ['from:flipkart.com Plus'], fallback: { amount: 0, currency: 'INR' } },
+  { name: 'Myntra Insider', category: 'fintech_in', icon: '👗', queries: ['from:myntra.com Insider'], fallback: { amount: 0, currency: 'INR' } },
+  { name: 'Inshorts Prime', category: 'fintech_in', icon: '📰', queries: ['from:inshorts.com Prime'], fallback: { amount: 99, currency: 'INR' } },
+  { name: 'Cult.fit / Cure.fit', category: 'fitness', icon: '💪', queries: ['from:cult.fit', 'from:curefit.com'], fallback: { amount: 999, currency: 'INR' } },
+  { name: 'HealthifyMe', category: 'fitness', icon: '🥗', queries: ['from:healthifyme.com'], fallback: { amount: 499, currency: 'INR' } },
+  { name: 'Peloton', category: 'fitness', icon: '🚴', queries: ['from:onepeloton.com'], fallback: { amount: 12.99, currency: 'USD' } },
+  { name: 'Apple Fitness+', category: 'fitness', icon: '🏋️', queries: ['subject:"Your receipt from Apple" "Fitness+"'], fallback: { amount: 9.99, currency: 'USD' } },
+  { name: 'Headspace', category: 'fitness', icon: '🧘', queries: ['from:headspace.com'], fallback: { amount: 12.99, currency: 'USD' } },
+  { name: 'Calm', category: 'fitness', icon: '😌', queries: ['from:calm.com'], fallback: { amount: 14.99, currency: 'USD' } },
+  { name: 'Strava', category: 'fitness', icon: '🏃', queries: ['from:strava.com'], fallback: { amount: 79.99, currency: 'USD' } },
+  { name: 'Microsoft 365', category: 'software', icon: '💼', queries: ['subject:"Microsoft 365" receipt'], fallback: { amount: 6.99, currency: 'USD' } },
+  { name: 'Adobe Creative Cloud', category: 'software', icon: '🎨', queries: ['from:adobe.com invoice'], fallback: { amount: 54.99, currency: 'USD' } },
+  { name: 'Dropbox', category: 'software', icon: '📦', queries: ['from:dropbox.com'], fallback: { amount: 9.99, currency: 'USD' } },
+  { name: 'iCloud+', category: 'software', icon: '☁️', queries: ['subject:"Your receipt from Apple" "iCloud"'], fallback: { amount: 0.99, currency: 'USD' } },
+  { name: 'Google One', category: 'software', icon: '☁️', queries: ['from:google.com "Google One"'], fallback: { amount: 130, currency: 'INR' } },
+  { name: 'Grammarly', category: 'software', icon: '✍️', queries: ['from:grammarly.com'], fallback: { amount: 12, currency: 'USD' } },
+  { name: 'Canva Pro', category: 'software', icon: '🎨', queries: ['from:canva.com'], fallback: { amount: 12.99, currency: 'USD' } },
+  { name: 'Notion', category: 'software', icon: '📝', queries: ['from:notion.so'], fallback: { amount: 10, currency: 'USD' } },
+  { name: 'Zoom', category: 'software', icon: '💻', queries: ['from:zoom.us'], fallback: { amount: 14.99, currency: 'USD' } },
+  { name: 'Slack', category: 'software', icon: '💬', queries: ['from:slack.com billing'], fallback: { amount: 8.75, currency: 'USD' } },
+  { name: 'ChatGPT (OpenAI)', category: 'ai', icon: '🤖', queries: ['from:openai.com receipt'], fallback: { amount: 20, currency: 'USD' } },
+  { name: 'Anthropic (Claude)', category: 'ai', icon: '🤖', queries: ['from:anthropic.com'], fallback: { amount: 20, currency: 'USD' } },
+  { name: 'GitHub Copilot', category: 'ai', icon: '👨‍💻', queries: ['from:github.com Copilot'], fallback: { amount: 10, currency: 'USD' } },
+  { name: 'Midjourney', category: 'ai', icon: '🎨', queries: ['from:midjourney.com'], fallback: { amount: 10, currency: 'USD' } },
+  { name: 'PlayStation Plus', category: 'gaming', icon: '🎮', queries: ['from:playstation.com'], fallback: { amount: 9.99, currency: 'USD' } },
+  { name: 'Xbox Game Pass', category: 'gaming', icon: '🎮', queries: ['from:xbox.com'], fallback: { amount: 16.99, currency: 'USD' } },
+  { name: 'Nintendo Switch Online', category: 'gaming', icon: '🎮', queries: ['from:nintendo.com'], fallback: { amount: 3.99, currency: 'USD' } },
+  { name: 'Discord Nitro', category: 'gaming', icon: '🎮', queries: ['from:discord.com'], fallback: { amount: 9.99, currency: 'USD' } },
+  { name: 'New York Times', category: 'news', icon: '📰', queries: ['from:nytimes.com'], fallback: { amount: 17, currency: 'USD' } },
+  { name: 'Wall Street Journal', category: 'news', icon: '📊', queries: ['from:wsj.com'], fallback: { amount: 19.50, currency: 'USD' } },
+  { name: 'Audible', category: 'news', icon: '🎧', queries: ['from:audible.com', 'from:audible.in'], fallback: { amount: 199, currency: 'INR' } },
+  { name: 'Kindle Unlimited', category: 'news', icon: '📚', queries: ['from:amazon.com "Kindle Unlimited"', 'from:amazon.in "Kindle Unlimited"'], fallback: { amount: 169, currency: 'INR' } },
+  { name: 'Medium', category: 'news', icon: '📝', queries: ['from:medium.com'], fallback: { amount: 5, currency: 'USD' } },
+  { name: 'NordVPN', category: 'security', icon: '🛡️', queries: ['from:nordvpn.com'], fallback: { amount: 12.99, currency: 'USD' } },
+  { name: 'ExpressVPN', category: 'security', icon: '🛡️', queries: ['from:expressvpn.com'], fallback: { amount: 12.95, currency: 'USD' } },
+  { name: '1Password', category: 'security', icon: '🔑', queries: ['from:1password.com'], fallback: { amount: 2.99, currency: 'USD' } },
+  { name: 'LastPass', category: 'security', icon: '🔐', queries: ['from:lastpass.com'], fallback: { amount: 3, currency: 'USD' } },
+  { name: 'LinkedIn Premium', category: 'professional', icon: '💼', queries: ['from:linkedin.com Premium receipt'], fallback: { amount: 29.99, currency: 'USD' } },
+  { name: 'Coursera', category: 'professional', icon: '🎓', queries: ['from:coursera.org'], fallback: { amount: 49, currency: 'USD' } },
+  { name: 'MasterClass', category: 'professional', icon: '🎓', queries: ['from:masterclass.com'], fallback: { amount: 15, currency: 'USD' } },
+];
 
-            const getServiceIcon = (serviceName) => {
-                const icons = {
-                    'Netflix': '🎬', 'Hulu': '📺', 'Disney+': '🏰', 'HBO Max': '🎭', 'Amazon Prime': '📦',
-                    'YouTube Premium': '▶️', 'Apple TV+': '📱', 'Paramount+': '⛰️', 'Peacock': '🦚', 'Discovery+': '🔍',
-                    'Showtime': '🎬', 'Crunchyroll': '🍜',
-                    'Spotify': '🎵', 'Apple Music': '🎵', 'YouTube Music': '🎶', 'Tidal': '🌊', 'Pandora': '📻', 'SiriusXM': '📻',
-                    'Microsoft 365': '💼', 'Adobe Creative Cloud': '🎨', 'Dropbox': '📦', 'iCloud+': '☁️', 'Google One': '☁️',
-                    'Grammarly': '✍️', 'Canva Pro': '🎨', 'Notion': '📝', 'Evernote': '📝', 'Zoom': '💻', 'Slack': '💬',
-                    'ChatGPT': '💬', 'Anthropic': '🤖', 'GitHub Copilot': '👨‍💻', 'Midjourney': '🎨', 'Jasper': '✨',
-                    'PlayStation Plus': '🎮', 'Xbox Game Pass': '🎮', 'Nintendo Switch Online': '🎮', 'EA Play': '🎮', 'Discord Nitro': '🎮',
-                    'Peloton': '🚴', 'Apple Fitness+': '💪', 'Headspace': '🧘', 'Calm': '😌', 'Strava': '🏃',
-                    'New York Times': '📰', 'Wall Street Journal': '📊', 'Audible': '🎧', 'Kindle Unlimited': '📚', 'Medium': '📝',
-                    'NordVPN': '🛡️', '1Password': '🔑', 'LastPass': '🔐', 'ExpressVPN': '🛡️',
-                    'HelloFresh': '🍽️', 'DoorDash DashPass': '🍕', 'Uber One': '🚗',
-                    'LinkedIn Premium': '💼', 'Coursera': '🎓', 'MasterClass': '🎓'
-                };
-                return icons[serviceName] || '📱';
-            };
+const CATEGORY_LABELS = {
+  streaming_in: 'Indian streaming', streaming: 'Global streaming', music: 'Music', food: 'Food & delivery',
+  fintech_in: 'Memberships', fitness: 'Fitness & health', software: 'Software', ai: 'AI tools',
+  gaming: 'Gaming', news: 'News & reading', security: 'Security & VPN', professional: 'Professional',
+};
 
-            const getServiceColor = (serviceName) => {
-                const streaming = ['Netflix', 'Hulu', 'Disney+', 'HBO Max', 'Amazon Prime', 'YouTube Premium', 'Apple TV+', 'Paramount+', 'Peacock', 'Discovery+', 'Showtime', 'Crunchyroll'];
-                const music = ['Spotify', 'Apple Music', 'YouTube Music', 'Tidal', 'Pandora', 'SiriusXM'];
-                const software = ['Microsoft 365', 'Adobe Creative Cloud', 'Dropbox', 'iCloud+', 'Google One', 'Grammarly', 'Canva Pro', 'Notion', 'Evernote', 'Zoom', 'Slack'];
-                const ai = ['ChatGPT', 'Anthropic', 'GitHub Copilot', 'Midjourney', 'Jasper'];
-                const gaming = ['PlayStation Plus', 'Xbox Game Pass', 'Nintendo Switch Online', 'EA Play', 'Discord Nitro'];
-                const fitness = ['Peloton', 'Apple Fitness+', 'Headspace', 'Calm', 'Strava'];
-                const news = ['New York Times', 'Wall Street Journal', 'Audible', 'Kindle Unlimited', 'Medium'];
-                const security = ['NordVPN', '1Password', 'LastPass', 'ExpressVPN'];
-                
-                if (streaming.includes(serviceName)) return 'from-red-500 to-red-600';
-                if (music.includes(serviceName)) return 'from-green-500 to-green-600';
-                if (software.includes(serviceName)) return 'from-blue-500 to-blue-600';
-                if (ai.includes(serviceName)) return 'from-purple-500 to-purple-600';
-                if (gaming.includes(serviceName)) return 'from-indigo-500 to-indigo-600';
-                if (fitness.includes(serviceName)) return 'from-orange-500 to-orange-600';
-                if (news.includes(serviceName)) return 'from-gray-600 to-gray-700';
-                if (security.includes(serviceName)) return 'from-yellow-500 to-yellow-600';
-                return 'from-teal-500 to-teal-600';
-            };
+const CATEGORY_COLORS = {
+  streaming_in: 'from-orange-500 to-red-500', streaming: 'from-red-500 to-red-600',
+  music: 'from-green-500 to-green-600', food: 'from-amber-500 to-orange-600',
+  fintech_in: 'from-pink-500 to-rose-600', fitness: 'from-emerald-500 to-teal-600',
+  software: 'from-blue-500 to-blue-600', ai: 'from-purple-500 to-purple-600',
+  gaming: 'from-indigo-500 to-indigo-600', news: 'from-gray-600 to-gray-700',
+  security: 'from-yellow-500 to-yellow-600', professional: 'from-slate-600 to-slate-700',
+};
 
-            const handleSignIn = () => {
-                setError(null);
-                try {
-                    const tokenClient = google.accounts.oauth2.initTokenClient({
-                        client_id: CLIENT_ID,
-                        scope: SCOPES,
-                        callback: (response) => {
-                            if (response.error) {
-                                setError(`OAuth Error: ${response.error}`);
-                                return;
-                            }
-                            if (response.access_token) {
-                                setAccessToken(response.access_token);
-                                setIsAuthenticated(true);
-                                setError(null);
-                            }
-                        },
-                    });
-                    tokenClient.requestAccessToken({ prompt: 'consent' });
-                } catch (err) {
-                    setError(`Failed to initialize OAuth: ${err.message}`);
-                }
-            };
+// ---------------------------------------------------------------------------
+// EMAIL EXTRACTION HELPERS (same as before)
+// ---------------------------------------------------------------------------
+const decodeBase64Url = (data) => {
+  try { return decodeURIComponent(escape(atob(data.replace(/-/g, '+').replace(/_/g, '/')))); }
+  catch { return ''; }
+};
+const getEmailBodyText = (payload) => {
+  if (!payload) return '';
+  if (payload.body?.data) return decodeBase64Url(payload.body.data);
+  if (payload.parts) {
+    let c = '';
+    for (const p of payload.parts) {
+      if (p.mimeType === 'text/plain' && p.body?.data) c += decodeBase64Url(p.body.data);
+      else if (p.mimeType === 'text/html' && p.body?.data && !c) c += decodeBase64Url(p.body.data).replace(/<[^>]+>/g, ' ');
+      else if (p.parts) c += getEmailBodyText(p);
+    }
+    return c;
+  }
+  return '';
+};
+const AMOUNT_PATTERNS = [
+  { regex: /(?:₹|Rs\.?\s?|INR\s?)\s?([\d,]+(?:\.\d{1,2})?)/i, currency: 'INR' },
+  { regex: /(?:\$|USD\s?)\s?([\d,]+(?:\.\d{1,2})?)/i, currency: 'USD' },
+  { regex: /(?:£|GBP\s?)\s?([\d,]+(?:\.\d{1,2})?)/i, currency: 'GBP' },
+  { regex: /(?:€|EUR\s?)\s?([\d,]+(?:\.\d{1,2})?)/i, currency: 'EUR' },
+];
+const extractAmount = (body, subject = '') => {
+  const hay = `${subject}\n${body}`;
+  const focused = [...hay.matchAll(/(?:total|amount|charged|paid|payment|grand total|subtotal|order total)[^\d]{0,40}/gi)]
+    .map(m => hay.substring(m.index, m.index + 80));
+  for (const snip of focused) {
+    for (const { regex, currency } of AMOUNT_PATTERNS) {
+      const m = snip.match(regex);
+      if (m) {
+        const v = parseFloat(m[1].replace(/,/g, ''));
+        if (!isNaN(v) && v > 0 && v < 100000) return { amount: v, currency };
+      }
+    }
+  }
+  for (const { regex, currency } of AMOUNT_PATTERNS) {
+    const m = hay.match(regex);
+    if (m) {
+      const v = parseFloat(m[1].replace(/,/g, ''));
+      if (!isNaN(v) && v > 0 && v < 100000) return { amount: v, currency };
+    }
+  }
+  return null;
+};
 
-            const searchGmail = async (query) => {
-                const response = await fetch(
-                    `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=20`,
-                    { headers: { Authorization: `Bearer ${accessToken}` } }
-                );
-                if (!response.ok) throw new Error(`Gmail API error: ${response.status}`);
-                const data = await response.json();
-                return data.messages || [];
-            };
+const FX_TO_INR = { INR: 1, USD: 83, GBP: 105, EUR: 90 };
+const FX_TO_USD = { INR: 1 / 83, USD: 1, GBP: 1.27, EUR: 1.08 };
+const formatCurrency = (a, c) => {
+  if (c === 'INR') return '₹' + Math.round(a).toLocaleString('en-IN');
+  if (c === 'USD') return '$' + a.toFixed(2);
+  if (c === 'GBP') return '£' + a.toFixed(2);
+  if (c === 'EUR') return '€' + a.toFixed(2);
+  return a.toFixed(2) + ' ' + c;
+};
 
-            const getMessageDetails = async (messageId) => {
-                const response = await fetch(
-                    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}`,
-                    { headers: { Authorization: `Bearer ${accessToken}` } }
-                );
-                if (!response.ok) throw new Error(`Failed to fetch message: ${response.status}`);
-                return await response.json();
-            };
+// ---------------------------------------------------------------------------
+// EMAIL CAPTURE STORAGE — Formspree fallback if no backend
+// Replace this URL with your own (formspree.io or Buttondown or n8n webhook)
+// ---------------------------------------------------------------------------
+const EMAIL_CAPTURE_URL = 'https://formspree.io/f/YOUR_FORM_ID'; // <-- REPLACE
+const submitEmail = async (email, gmailAddr) => {
+  try {
+    await fetch(EMAIL_CAPTURE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ email, gmailAddr, source: 'subscription-scanner', ts: new Date().toISOString() }),
+    });
+    return true;
+  } catch (e) {
+    console.error('Email capture failed:', e);
+    return false;
+  }
+};
 
-            const extractDate = (message) => {
-                const headers = message.payload?.headers || [];
-                const dateHeader = headers.find(h => h.name.toLowerCase() === 'date');
-                if (dateHeader) return new Date(dateHeader.value);
-                return new Date(parseInt(message.internalDate));
-            };
+// ---------------------------------------------------------------------------
+// PRO UPGRADE MODAL — shown when locked features are clicked
+// ---------------------------------------------------------------------------
+const ProModal = ({ open, onClose, trigger, onJoinWaitlist }) => {
+  const [email, setEmail] = useState('');
+  const [submitted, setSubmitted] = useState(false);
 
-            const scanSubscriptions = async () => {
-                setLoading(true);
-                setError(null);
-                setSubscriptions([]);
+  useEffect(() => {
+    if (open) track('viewed_pro_modal', { trigger });
+  }, [open, trigger]);
 
-                const services = [
-                    // Streaming Video (12)
-                    { name: 'Netflix', queries: ['from:netflix.com "Order placed"', 'from:paypal "You paid" "Netflix"'] },
-                    { name: 'Hulu', queries: ['from:hulu.com "billing"', 'from:paypal "You paid" "Hulu"'] },
-                    { name: 'Disney+', queries: ['from:disneyplus.com "billing"', 'from:paypal "You paid" "Disney"'] },
-                    { name: 'HBO Max', queries: ['from:hbomax.com "billing"', 'from:paypal "You paid" "HBO"'] },
-                    { name: 'Amazon Prime', queries: ['from:amazon.com "Prime membership" "Order placed"', 'from:paypal "You paid" "Amazon Prime"'] },
-                    { name: 'YouTube Premium', queries: ['from:youtube.com "YouTube Premium" "Order"', 'from:paypal "You paid" "YouTube"'] },
-                    { name: 'Apple TV+', queries: ['subject:"Your receipt from Apple" "Apple TV+"', 'from:paypal "You paid" "Apple TV"'] },
-                    { name: 'Paramount+', queries: ['from:paramountplus.com "billing"', 'from:paypal "You paid" "Paramount"'] },
-                    { name: 'Peacock', queries: ['from:peacocktv.com "billing"', 'from:paypal "You paid" "Peacock"'] },
-                    { name: 'Discovery+', queries: ['from:discoveryplus.com "billing"', 'from:paypal "You paid" "Discovery"'] },
-                    { name: 'Showtime', queries: ['from:showtime.com "billing"', 'from:paypal "You paid" "Showtime"'] },
-                    { name: 'Crunchyroll', queries: ['from:crunchyroll.com "billing"', 'from:paypal "You paid" "Crunchyroll"'] },
-                    
-                    // Music (6)
-                    { name: 'Spotify', queries: ['from:spotify.com "receipt for your"', 'from:paypal "You paid" "Spotify"'] },
-                    { name: 'Apple Music', queries: ['subject:"Your receipt from Apple" "Apple Music"', 'from:paypal "You paid" "Apple Music"'] },
-                    { name: 'YouTube Music', queries: ['from:youtube.com "YouTube Music" "Order"', 'from:paypal "You paid" "YouTube Music"'] },
-                    { name: 'Tidal', queries: ['from:tidal.com "billing"', 'from:paypal "You paid" "Tidal"'] },
-                    { name: 'Pandora', queries: ['from:pandora.com "billing"', 'from:paypal "You paid" "Pandora"'] },
-                    { name: 'SiriusXM', queries: ['from:siriusxm.com "billing"', 'from:paypal "You paid" "SiriusXM"'] },
-                    
-                    // Software & Productivity (11)
-                    { name: 'Microsoft 365', queries: ['subject:"Your receipt from Apple" "Microsoft 365"', 'from:paypal "You paid" "Microsoft 365"'] },
-                    { name: 'Adobe Creative Cloud', queries: ['from:adobe.com "invoice"', 'from:paypal "You paid" "Adobe"'] },
-                    { name: 'Dropbox', queries: ['from:dropbox.com "billing"', 'from:paypal "You paid" "Dropbox"'] },
-                    { name: 'iCloud+', queries: ['subject:"Your receipt from Apple" "iCloud"', 'from:paypal "You paid" "iCloud"'] },
-                    { name: 'Google One', queries: ['from:google.com subject:"receipt" "Google One"', 'from:paypal "You paid" "Google One"'] },
-                    { name: 'Grammarly', queries: ['from:grammarly.com "billing"', 'from:paypal "You paid" "Grammarly"'] },
-                    { name: 'Canva Pro', queries: ['from:canva.com "billing"', 'from:paypal "You paid" "Canva"'] },
-                    { name: 'Notion', queries: ['from:notion.so "billing"', 'from:paypal "You paid" "Notion"'] },
-                    { name: 'Evernote', queries: ['from:evernote.com "billing"', 'from:paypal "You paid" "Evernote"'] },
-                    { name: 'Zoom', queries: ['from:zoom.us "billing"', 'from:paypal "You paid" "Zoom"'] },
-                    { name: 'Slack', queries: ['from:slack.com "billing"', 'from:paypal "You paid" "Slack"'] },
-                    
-                    // AI & Tech (5)
-                    { name: 'ChatGPT', queries: ['from:openai.com "Order placed"', 'from:paypal "You paid" "OpenAI"'] },
-                    { name: 'Anthropic', queries: ['from:anthropic.com "invoice"', 'from:paypal "You paid" "Anthropic"'] },
-                    { name: 'GitHub Copilot', queries: ['from:github.com "billing"', 'from:paypal "You paid" "GitHub"'] },
-                    { name: 'Midjourney', queries: ['from:midjourney.com "billing"', 'from:paypal "You paid" "Midjourney"'] },
-                    { name: 'Jasper', queries: ['from:jasper.ai "billing"', 'from:paypal "You paid" "Jasper"'] },
-                    
-                    // Gaming (5)
-                    { name: 'PlayStation Plus', queries: ['from:playstation.com "billing"', 'from:paypal "You paid" "PlayStation"'] },
-                    { name: 'Xbox Game Pass', queries: ['from:xbox.com "billing"', 'from:paypal "You paid" "Xbox"'] },
-                    { name: 'Nintendo Switch Online', queries: ['from:nintendo.com "billing"', 'from:paypal "You paid" "Nintendo"'] },
-                    { name: 'EA Play', queries: ['from:ea.com "billing"', 'from:paypal "You paid" "EA Play"'] },
-                    { name: 'Discord Nitro', queries: ['from:discord.com "billing"', 'from:paypal "You paid" "Discord"'] },
-                    
-                    // Fitness & Health (5)
-                    { name: 'Peloton', queries: ['from:onepeloton.com "billing"', 'from:paypal "You paid" "Peloton"'] },
-                    { name: 'Apple Fitness+', queries: ['subject:"Your receipt from Apple" "Fitness+"', 'from:paypal "You paid" "Apple Fitness"'] },
-                    { name: 'Headspace', queries: ['from:headspace.com "billing"', 'from:paypal "You paid" "Headspace"'] },
-                    { name: 'Calm', queries: ['from:calm.com "billing"', 'from:paypal "You paid" "Calm"'] },
-                    { name: 'Strava', queries: ['from:strava.com "billing"', 'from:paypal "You paid" "Strava"'] },
-                    
-                    // News & Reading (5)
-                    { name: 'New York Times', queries: ['from:nytimes.com "billing"', 'from:paypal "You paid" "New York Times"'] },
-                    { name: 'Wall Street Journal', queries: ['from:wsj.com "billing"', 'from:paypal "You paid" "Wall Street Journal"'] },
-                    { name: 'Audible', queries: ['from:audible.com "billing"', 'from:paypal "You paid" "Audible"'] },
-                    { name: 'Kindle Unlimited', queries: ['from:amazon.com "Kindle Unlimited" "Order placed"', 'from:paypal "You paid" "Kindle"'] },
-                    { name: 'Medium', queries: ['from:medium.com "billing"', 'from:paypal "You paid" "Medium"'] },
-                    
-                    // VPN & Security (4)
-                    { name: 'NordVPN', queries: ['from:nordvpn.com "billing"', 'from:paypal "You paid" "NordVPN"'] },
-                    { name: '1Password', queries: ['from:1password.com "billing"', 'from:paypal "You paid" "1Password"'] },
-                    { name: 'LastPass', queries: ['from:lastpass.com "billing"', 'from:paypal "You paid" "LastPass"'] },
-                    { name: 'ExpressVPN', queries: ['from:expressvpn.com "billing"', 'from:paypal "You paid" "ExpressVPN"'] },
-                    
-                    // Food & Delivery (3)
-                    { name: 'HelloFresh', queries: ['from:hellofresh.com "billing"', 'from:paypal "You paid" "HelloFresh"'] },
-                    { name: 'DoorDash DashPass', queries: ['from:doordash.com "DashPass"', 'from:paypal "You paid" "DoorDash"'] },
-                    { name: 'Uber One', queries: ['from:uber.com "Uber One"', 'from:paypal "You paid" "Uber"'] },
-                    
-                    // Professional (3)
-                    { name: 'LinkedIn Premium', queries: ['from:linkedin.com subject:"receipt" "Premium"', 'from:paypal "You paid" "LinkedIn Premium"'] },
-                    { name: 'Coursera', queries: ['from:coursera.org "billing"', 'from:paypal "You paid" "Coursera"'] },
-                    { name: 'MasterClass', queries: ['from:masterclass.com "billing"', 'from:paypal "You paid" "MasterClass"'] },
-                ];
+  if (!open) return null;
 
-                try {
-                    const results = [];
-                    for (const service of services) {
-                        let latestDate = null;
-                        let found = false;
+  const handleJoin = async () => {
+    if (!email || !email.includes('@')) return;
+    track('joined_pro_waitlist', { trigger, email_provided: true });
+    await submitEmail(email, '');
+    onJoinWaitlist(email);
+    setSubmitted(true);
+  };
 
-                        for (const query of service.queries) {
-                            try {
-                                const messages = await searchGmail(query);
-                                if (messages.length > 0) {
-                                    found = true;
-                                    const messageDetails = await getMessageDetails(messages[0].id);
-                                    const messageDate = extractDate(messageDetails);
-                                    if (!latestDate || messageDate > latestDate) {
-                                        latestDate = messageDate;
-                                    }
-                                }
-                            } catch (err) {
-                                console.error(`Error searching ${service.name}:`, err);
-                            }
-                        }
+  return (
+    <div className="fixed inset-0 modal-bg z-50 flex items-center justify-center p-4 fade-in" onClick={onClose}>
+      <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl" onClick={e => e.stopPropagation()}>
+        {!submitted ? (
+          <>
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full mb-4 uppercase tracking-wider">
+                ✨ Pro · Launching soon
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Get the full picture</h2>
+              <p className="text-gray-600">Join the waitlist and get 50% off your first month when Pro launches.</p>
+            </div>
 
-                        if (found) {
-                            results.push({
-                                service: service.name,
-                                lastBilled: latestDate,
-                                status: 'Active'
-                            });
-                        }
-                    }
+            <ul className="space-y-3 mb-6 text-sm">
+              <li className="flex gap-3"><span className="text-green-500 font-bold">✓</span><span><strong>See all subscriptions</strong>, not just the top {FREE_TIER_LIMIT}.</span></li>
+              <li className="flex gap-3"><span className="text-green-500 font-bold">✓</span><span><strong>Monthly auto-rescan</strong> — new charges caught instantly.</span></li>
+              <li className="flex gap-3"><span className="text-green-500 font-bold">✓</span><span><strong>Price-hike alerts</strong> when Netflix/Hotstar bumps the price.</span></li>
+              <li className="flex gap-3"><span className="text-green-500 font-bold">✓</span><span><strong>Free-trial-ending warnings</strong> 3 days before you get charged.</span></li>
+              <li className="flex gap-3"><span className="text-green-500 font-bold">✓</span><span><strong>One-click cancellation emails</strong> drafted for each service.</span></li>
+              <li className="flex gap-3"><span className="text-green-500 font-bold">✓</span><span><strong>Multi-Gmail support</strong> — combine personal + work.</span></li>
+            </ul>
 
-                    results.sort((a, b) => b.lastBilled - a.lastBilled);
-                    setSubscriptions(results);
+            <div className="bg-gray-50 rounded-xl p-4 mb-4">
+              <div className="flex items-baseline gap-2 mb-1">
+                <span className="text-3xl font-bold text-gray-900">₹99</span>
+                <span className="text-gray-500 line-through">₹199</span>
+                <span className="text-sm text-gray-600">/ first month for waitlist</span>
+              </div>
+              <p className="text-xs text-gray-500">Cancel anytime. ₹199/mo after the first month.</p>
+            </div>
 
-                    if (results.length === 0) {
-                        setError('No subscriptions found in your Gmail.');
-                    }
-                } catch (err) {
-                    setError(`Error scanning emails: ${err.message}`);
-                } finally {
-                    setLoading(false);
-                }
-            };
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl mb-3 focus:border-purple-500 focus:outline-none"
+            />
+            <button
+              onClick={handleJoin}
+              disabled={!email.includes('@')}
+              className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 disabled:from-gray-300 disabled:to-gray-400 text-white font-semibold py-3 rounded-xl shadow"
+            >
+              Join the waitlist
+            </button>
+            <button onClick={onClose} className="w-full mt-3 text-gray-500 text-sm hover:text-gray-700">No thanks</button>
+          </>
+        ) : (
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center text-3xl mb-4">✓</div>
+            <h2 className="text-2xl font-bold mb-2">You're on the list</h2>
+            <p className="text-gray-600 mb-6">We'll email you the moment Pro launches with your 50% discount code.</p>
+            <button onClick={onClose} className="bg-gray-900 text-white font-semibold py-3 px-6 rounded-xl">Got it</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
-            const formatDate = (date) => {
-                return date.toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'short', 
-                    day: 'numeric' 
-                });
-            };
+// ---------------------------------------------------------------------------
+// EMAIL CAPTURE BEFORE SHOWING RESULTS
+// ---------------------------------------------------------------------------
+const EmailGate = ({ onSubmit, onSkip, gmailAddr }) => {
+  const [email, setEmail] = useState(gmailAddr || '');
+  const [submitting, setSubmitting] = useState(false);
 
-            const getDaysAgo = (date) => {
-                const days = Math.floor((new Date() - date) / (1000 * 60 * 60 * 24));
-                if (days === 0) return 'Today';
-                if (days === 1) return 'Yesterday';
-                return `${days} days ago`;
-            };
+  const handle = async () => {
+    if (!email.includes('@')) return;
+    setSubmitting(true);
+    track('email_captured', { has_gmail: !!gmailAddr });
+    await submitEmail(email, gmailAddr || '');
+    onSubmit(email);
+  };
 
-            const jsonOutput = JSON.stringify(subscriptions.map(sub => ({
-                service: sub.service,
-                lastBilled: sub.lastBilled.toISOString(),
-                status: sub.status
-            })), null, 2);
+  return (
+    <div className="bg-white rounded-2xl p-8 shadow-lg max-w-md mx-auto text-center">
+      <div className="w-16 h-16 mx-auto bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-3xl mb-4">📬</div>
+      <h2 className="text-2xl font-bold mb-2">Where should we send your report?</h2>
+      <p className="text-gray-600 mb-6 text-sm">We'll email you a copy of your subscription audit so you can refer back to it. No spam, just your report.</p>
+      <input
+        type="email"
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        placeholder="your@email.com"
+        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl mb-3 focus:border-purple-500 focus:outline-none"
+      />
+      <button
+        onClick={handle}
+        disabled={!email.includes('@') || submitting}
+        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-300 disabled:to-gray-400 text-white font-semibold py-3 rounded-xl shadow"
+      >
+        {submitting ? 'Saving...' : 'Email me my report'}
+      </button>
+      <button onClick={() => { track('email_gate_skipped', {}); onSkip(); }} className="text-gray-400 text-sm mt-3 hover:text-gray-600">Skip — just show me results</button>
+    </div>
+  );
+};
 
-            return (
-                <div className="min-h-screen gradient-bg py-12 px-4 sm:px-6 lg:px-8">
-                    <div className="max-w-5xl mx-auto">
-                        {/* Header */}
-                        <div className="text-center mb-12">
-                            <h1 className="text-5xl md:text-6xl font-extrabold text-white mb-4">
-                                Subscription Scanner
-                            </h1>
-                            <p className="text-xl text-white/90 max-w-2xl mx-auto">
-                                Discover all your active subscriptions in seconds by scanning your Gmail
-                            </p>
-                        </div>
+// ---------------------------------------------------------------------------
+// MAIN COMPONENT
+// ---------------------------------------------------------------------------
+const SubscriptionScanner = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [accessToken, setAccessToken] = useState(null);
+  const [userEmail, setUserEmail] = useState('');
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 0, current: '' });
+  const [error, setError] = useState(null);
+  const [hasScanned, setHasScanned] = useState(false);
+  const [showEmailGate, setShowEmailGate] = useState(false);
+  const [emailSubmitted, setEmailSubmitted] = useState(false);
+  const [proModalOpen, setProModalOpen] = useState(false);
+  const [proModalTrigger, setProModalTrigger] = useState('');
 
-                        {/* Main Card */}
-                        <div className="glass-effect rounded-3xl shadow-2xl p-8 md:p-12">
-                            {!isAuthenticated ? (
-                                <div className="text-center">
-                                    <div className="mb-8">
-                                        <div className="w-32 h-32 mx-auto bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-6xl mb-6 shadow-xl">
-                                            📧
-                                        </div>
-                                        <h2 className="text-3xl font-bold text-gray-800 mb-3">Connect Your Gmail</h2>
-                                        <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto">
-                                            We'll scan your email for subscription receipts and show you everything in one place
-                                        </p>
-                                    </div>
+  useEffect(() => { track('page_viewed', {}); }, []);
 
-                                    {error && (
-                                        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-left max-w-md mx-auto">
-                                            <p className="text-red-800 text-sm">{error}</p>
-                                        </div>
-                                    )}
+  const openProModal = (trigger) => {
+    track('clicked_locked_feature', { feature: trigger });
+    setProModalTrigger(trigger);
+    setProModalOpen(true);
+  };
 
-                                    <button
-                                        onClick={handleSignIn}
-                                        className="inline-flex items-center justify-center gap-3 bg-white text-gray-800 font-semibold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 border-2 border-gray-200 hover:border-gray-300 text-lg"
-                                    >
-                                        <svg className="w-6 h-6" viewBox="0 0 24 24">
-                                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                                        </svg>
-                                        Sign in with Google
-                                    </button>
+  const handleSignIn = () => {
+    track('clicked_sign_in', {});
+    setError(null);
+    try {
+      const tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: async (response) => {
+          if (response.error) { setError(`OAuth Error: ${response.error}`); return; }
+          if (response.access_token) {
+            setAccessToken(response.access_token);
+            setIsAuthenticated(true);
+            track('signed_in_successfully', {});
+            // Try to grab Gmail address for prefill
+            try {
+              const profileRes = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
+                headers: { Authorization: `Bearer ${response.access_token}` },
+              });
+              if (profileRes.ok) {
+                const profile = await profileRes.json();
+                setUserEmail(profile.emailAddress || '');
+              }
+            } catch (e) { /* not critical */ }
+            setError(null);
+          }
+        },
+      });
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+    } catch (err) {
+      setError(`Failed to initialize OAuth: ${err.message}`);
+    }
+  };
 
-                                    <div className="mt-8 flex items-center justify-center gap-6 text-sm text-gray-500">
-                                        <div className="flex items-center gap-2">
-                                            <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                                            </svg>
-                                            Read-only access
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd"/>
-                                            </svg>
-                                            Secure & Private
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div>
-                                    <div className="flex items-center justify-between mb-8">
-                                        <div>
-                                            <h2 className="text-3xl font-bold text-gray-800">Your Subscriptions</h2>
-                                            <p className="text-gray-600 mt-1">Scan your Gmail to find active subscriptions</p>
-                                        </div>
-                                        <button
-                                            onClick={scanSubscriptions}
-                                            disabled={loading}
-                                            className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
-                                        >
-                                            {loading ? (
-                                                <>
-                                                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                                                    </svg>
-                                                    Scanning...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                                    </svg>
-                                                    Start Scan
-                                                </>
-                                            )}
-                                        </button>
-                                    </div>
+  const searchGmail = async (query) => {
+    const res = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=5`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) throw new Error(`Gmail API error: ${res.status}`);
+    const data = await res.json();
+    return data.messages || [];
+  };
 
-                                    {error && (
-                                        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-                                            <p className="text-red-800">{error}</p>
-                                        </div>
-                                    )}
+  const getMessage = async (id) => {
+    const res = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) throw new Error(`Failed to fetch message: ${res.status}`);
+    return res.json();
+  };
 
-                                    {loading && (
-                                        <div className="space-y-4">
-                                            {[1,2,3,4,5].map(i => (
-                                                <div key={i} className="shimmer h-20 rounded-xl"></div>
-                                            ))}
-                                        </div>
-                                    )}
+  const extractDate = (m) => {
+    const h = (m.payload?.headers || []).find(x => x.name.toLowerCase() === 'date');
+    return h ? new Date(h.value) : new Date(parseInt(m.internalDate));
+  };
+  const extractSubject = (m) => {
+    const h = (m.payload?.headers || []).find(x => x.name.toLowerCase() === 'subject');
+    return h?.value || '';
+  };
 
-                                    {!loading && subscriptions.length > 0 && (
-                                        <div>
-                                            <div className="flex items-center justify-between mb-6">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="text-2xl font-bold text-gray-800">{subscriptions.length}</span>
-                                                    <span className="text-gray-600">Active Subscription{subscriptions.length !== 1 ? 's' : ''}</span>
-                                                </div>
-                                                <button
-                                                    onClick={() => setShowJson(!showJson)}
-                                                    className="text-sm bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg font-medium text-gray-700 transition-colors"
-                                                >
-                                                    {showJson ? '📊 Show Cards' : '{ } Show JSON'}
-                                                </button>
-                                            </div>
+  const scanSubscriptions = async () => {
+    track('clicked_start_scan', {});
+    setLoading(true);
+    setError(null);
+    setSubscriptions([]);
+    setProgress({ done: 0, total: SERVICES.length, current: '' });
 
-                                            {showJson ? (
-                                                <div className="bg-gray-900 text-green-400 p-6 rounded-xl overflow-x-auto">
-                                                    <pre className="text-sm font-mono">{jsonOutput}</pre>
-                                                </div>
-                                            ) : (
-                                                <div className="grid gap-4">
-                                                    {subscriptions.map((sub, index) => (
-                                                        <div 
-                                                            key={index}
-                                                            className="service-badge bg-white border-2 border-gray-100 rounded-xl p-6 hover:border-purple-200 transition-all"
-                                                        >
-                                                            <div className="flex items-center justify-between">
-                                                                <div className="flex items-center gap-4">
-                                                                    <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${getServiceColor(sub.service)} flex items-center justify-center text-3xl shadow-lg`}>
-                                                                        {getServiceIcon(sub.service)}
-                                                                    </div>
-                                                                    <div>
-                                                                        <h3 className="text-xl font-bold text-gray-800">{sub.service}</h3>
-                                                                        <p className="text-gray-500 text-sm mt-1">
-                                                                            Last billed {getDaysAgo(sub.lastBilled)}
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="text-right">
-                                                                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
-                                                                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                                                        {sub.status}
-                                                                    </div>
-                                                                    <p className="text-gray-600 text-sm mt-2">{formatDate(sub.lastBilled)}</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
+    const results = [];
+    for (let i = 0; i < SERVICES.length; i++) {
+      const service = SERVICES[i];
+      setProgress({ done: i, total: SERVICES.length, current: service.name });
+      let msgs = [];
+      for (const query of service.queries) {
+        try {
+          const ids = await searchGmail(query);
+          for (const m of ids) if (!msgs.find(x => x.id === m.id)) msgs.push(m);
+          if (msgs.length >= 3) break;
+        } catch (err) { console.error(`Search failed for ${service.name}:`, err); }
+      }
+      if (msgs.length === 0) continue;
 
-                        {/* Footer */}
-                        <div className="mt-8 text-center text-white/80 text-sm space-y-2">
-                            <p>🔒 Your data never leaves your browser • 100% secure & private</p>
-                            <div className="flex justify-center gap-4 mt-2">
-                                <a href="https://findmysubscriptions.com/privacy.html" target="_blank" rel="noopener noreferrer" className="hover:text-white underline">
-                                    Privacy Policy
-                                </a>
-                                <span>•</span>
-                                <a href="https://findmysubscriptions.com/terms.html" target="_blank" rel="noopener noreferrer" className="hover:text-white underline">
-                                    Terms of Service
-                                </a>
-                            </div>
-                            <p className="text-xs mt-2">© 2026 Aagam Technologies. All rights reserved.</p>
-                        </div>
-                    </div>
-                </div>
-            );
+      const fetched = [];
+      for (const m of msgs.slice(0, 3)) {
+        try { fetched.push(await getMessage(m.id)); }
+        catch (err) { console.error(`Fetch failed:`, err); }
+      }
+      if (fetched.length === 0) continue;
+
+      const parsed = fetched.map(msg => {
+        const body = getEmailBodyText(msg.payload);
+        const subject = extractSubject(msg);
+        const amt = extractAmount(body, subject);
+        return { date: extractDate(msg), amount: amt?.amount ?? null, currency: amt?.currency ?? null };
+      }).sort((a, b) => b.date - a.date);
+
+      const latest = parsed[0];
+      const previous = parsed.find((p, idx) => idx > 0 && p.amount != null) || null;
+      const finalAmount = latest.amount ?? service.fallback.amount;
+      const finalCurrency = latest.currency ?? service.fallback.currency;
+      const amountIsEstimate = latest.amount == null;
+
+      let priceHike = null;
+      if (previous && previous.amount != null && latest.amount != null
+          && previous.currency === latest.currency
+          && latest.amount > previous.amount * 1.05) {
+        priceHike = {
+          from: previous.amount, to: latest.amount, currency: latest.currency,
+          pct: Math.round((latest.amount / previous.amount - 1) * 100),
         };
+      }
 
-        ReactDOM.render(<SubscriptionScanner />, document.getElementById('root'));
-    </script>
+      results.push({
+        service: service.name, category: service.category, icon: service.icon,
+        lastBilled: latest.date, amount: finalAmount, currency: finalCurrency,
+        amountIsEstimate, priceHike, status: 'Active',
+      });
+    }
+
+    results.sort((a, b) => b.lastBilled - a.lastBilled);
+    setSubscriptions(results);
+    setLoading(false);
+    setHasScanned(true);
+    setProgress({ done: SERVICES.length, total: SERVICES.length, current: '' });
+
+    track('scan_completed', { found: results.length, with_price_hike: results.filter(r => r.priceHike).length });
+
+    // After scan completes, gate result viewing on email capture
+    if (results.length > 0 && !emailSubmitted) setShowEmailGate(true);
+
+    if (results.length === 0) {
+      setError('No subscriptions found. Make sure you signed in with the account that gets billing emails.');
+    }
+  };
+
+  const stats = useMemo(() => {
+    if (subscriptions.length === 0) return null;
+    const byCurrency = {};
+    for (const s of subscriptions) byCurrency[s.currency] = (byCurrency[s.currency] || 0) + s.amount;
+    const totalINR = Object.entries(byCurrency).reduce((a, [c, v]) => a + v * (FX_TO_INR[c] || 0), 0);
+    const totalUSD = Object.entries(byCurrency).reduce((a, [c, v]) => a + v * (FX_TO_USD[c] || 0), 0);
+    const byCategory = {};
+    for (const s of subscriptions) (byCategory[s.category] = byCategory[s.category] || []).push(s);
+    const duplicates = [];
+    for (const [cat, list] of Object.entries(byCategory)) {
+      if (['music', 'streaming', 'streaming_in', 'food'].includes(cat) && list.length > 1) {
+        duplicates.push({ category: cat, services: list.map(s => s.service) });
+      }
+    }
+    return {
+      totalINR, totalUSD, annualINR: totalINR * 12, annualUSD: totalUSD * 12,
+      byCurrency, byCategory, duplicates,
+      priceHikes: subscriptions.filter(s => s.priceHike),
+      count: subscriptions.length,
+    };
+  }, [subscriptions]);
+
+  const formatDate = (d) => d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const getDaysAgo = (d) => {
+    const days = Math.floor((new Date() - d) / 86400000);
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 30) return `${days} days ago`;
+    if (days < 365) return `${Math.floor(days / 30)} months ago`;
+    return `${Math.floor(days / 365)}y ago`;
+  };
+
+  // Split visible (free) and locked (Pro) subscriptions
+  const visibleSubs = subscriptions.slice(0, FREE_TIER_LIMIT);
+  const lockedSubs = subscriptions.slice(FREE_TIER_LIMIT);
+
+  return (
+    <div className="min-h-screen gradient-bg py-12 px-4 sm:px-6 lg:px-8">
+      <ProModal
+        open={proModalOpen}
+        onClose={() => setProModalOpen(false)}
+        trigger={proModalTrigger}
+        onJoinWaitlist={(e) => { setUserEmail(e); setEmailSubmitted(true); }}
+      />
+
+      <div className="max-w-5xl mx-auto">
+        <div className="text-center mb-12">
+          <h1 className="text-5xl md:text-6xl font-extrabold text-white mb-4 leading-tight">
+            Find every subscription<br/>draining your bank account
+          </h1>
+          <p className="text-xl text-white/90 max-w-2xl mx-auto">
+            Scans your Gmail in seconds for Netflix, Spotify, Hotstar, Swiggy One, Cred and 70+ more services.
+          </p>
+        </div>
+
+        <div className="glass-effect rounded-3xl shadow-2xl p-8 md:p-12">
+          {!isAuthenticated ? (
+            <div className="text-center">
+              <div className="mb-8">
+                <div className="w-32 h-32 mx-auto bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-6xl mb-6 shadow-xl">📧</div>
+                <h2 className="text-3xl font-bold text-gray-800 mb-3">Connect your Gmail</h2>
+                <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto">We scan only billing-related emails. Nothing leaves your browser — no servers, no storage.</p>
+              </div>
+              {error && <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-left max-w-md mx-auto"><p className="text-red-800 text-sm">{error}</p></div>}
+              <button onClick={handleSignIn} className="inline-flex items-center justify-center gap-3 bg-white text-gray-800 font-semibold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all border-2 border-gray-200 hover:border-gray-300 text-lg">
+                <svg className="w-6 h-6" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Sign in with Google
+              </button>
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001z" clipRule="evenodd"/></svg>
+                  Read-only access
+                </div>
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2z" clipRule="evenodd"/></svg>
+                  Runs in your browser
+                </div>
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
+                  70+ services detected
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+                <div>
+                  <h2 className="text-3xl font-bold text-gray-800">Your subscriptions</h2>
+                  <p className="text-gray-600 mt-1">Scanning {SERVICES.length} services from your Gmail</p>
+                </div>
+                <button onClick={scanSubscriptions} disabled={loading} className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all">
+                  {loading ? (<><svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Scanning…</>) :
+                    (<><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>{hasScanned ? 'Re-scan' : 'Start scan'}</>)}
+                </button>
+              </div>
+
+              {loading && (
+                <div className="mb-6">
+                  <div className="flex justify-between text-sm text-gray-600 mb-2">
+                    <span>Checking {progress.current || '…'}</span>
+                    <span>{progress.done} / {progress.total}</span>
+                  </div>
+                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-200" style={{ width: `${(progress.done / Math.max(1, progress.total)) * 100}%` }}/>
+                  </div>
+                </div>
+              )}
+
+              {error && <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl"><p className="text-red-800">{error}</p></div>}
+
+              {loading && subscriptions.length === 0 && (
+                <div className="space-y-4">
+                  {[1, 2, 3, 4].map(i => <div key={i} className="shimmer h-20 rounded-xl"></div>)}
+                </div>
+              )}
+
+              {/* Email gate — shown immediately after scan completes */}
+              {!loading && showEmailGate && !emailSubmitted && subscriptions.length > 0 && (
+                <EmailGate
+                  gmailAddr={userEmail}
+                  onSubmit={(e) => { setUserEmail(e); setEmailSubmitted(true); setShowEmailGate(false); }}
+                  onSkip={() => { setShowEmailGate(false); }}
+                />
+              )}
+
+              {!loading && stats && !showEmailGate && (
+                <>
+                  {/* Hero number */}
+                  <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 mb-6 text-center text-white shadow-xl">
+                    <p className="text-sm uppercase tracking-wider text-gray-400 mb-2">You are spending</p>
+                    <div className="text-5xl md:text-7xl font-extrabold big-number mb-2">
+                      {stats.byCurrency.INR && stats.byCurrency.USD
+                        ? <>{formatCurrency(stats.byCurrency.INR, 'INR')} <span className="text-3xl text-gray-400">+</span> {formatCurrency(stats.byCurrency.USD, 'USD')}</>
+                        : stats.byCurrency.INR
+                          ? formatCurrency(stats.byCurrency.INR, 'INR')
+                          : formatCurrency(stats.byCurrency.USD || stats.totalUSD, 'USD')}
+                    </div>
+                    <p className="text-gray-400 mb-4">per month, across {stats.count} active subscription{stats.count !== 1 ? 's' : ''}</p>
+                    <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full text-sm">
+                      <span>📅 That's <strong>{formatCurrency(stats.annualINR, 'INR')}</strong> per year</span>
+                    </div>
+                  </div>
+
+                  {/* Price hikes */}
+                  {stats.priceHikes.length > 0 && (
+                    <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-5 mb-6">
+                      <h3 className="font-bold text-red-900 mb-3 flex items-center gap-2"><span>⚠️</span> Price increases detected</h3>
+                      <ul className="space-y-1 text-sm text-red-800">
+                        {stats.priceHikes.map((s, i) => (
+                          <li key={i}><strong>{s.service}</strong>: {formatCurrency(s.priceHike.from, s.priceHike.currency)} → {formatCurrency(s.priceHike.to, s.priceHike.currency)} (+{s.priceHike.pct}%)</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Duplicates */}
+                  {stats.duplicates.length > 0 && (
+                    <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-5 mb-6">
+                      <h3 className="font-bold text-yellow-900 mb-3 flex items-center gap-2"><span>🔁</span> Possible duplicates</h3>
+                      <ul className="space-y-1 text-sm text-yellow-800">
+                        {stats.duplicates.map((d, i) => (
+                          <li key={i}>You have multiple <strong>{CATEGORY_LABELS[d.category]}</strong> services: {d.services.join(', ')}.</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Count header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl font-bold text-gray-800">{stats.count}</span>
+                      <span className="text-gray-600">Active subscription{stats.count !== 1 ? 's' : ''}</span>
+                    </div>
+                    {lockedSubs.length > 0 && (
+                      <span className="text-sm text-amber-700 font-medium bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+                        🔒 {lockedSubs.length} more locked
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Free subs */}
+                  <div className="grid gap-3 mb-3">
+                    {visibleSubs.map((sub, index) => (
+                      <div key={index} className="service-badge bg-white border-2 border-gray-100 rounded-xl p-5 hover:border-purple-200 transition-all">
+                        <div className="flex items-center justify-between gap-4 flex-wrap">
+                          <div className="flex items-center gap-4 min-w-0">
+                            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${CATEGORY_COLORS[sub.category] || 'from-gray-500 to-gray-600'} flex items-center justify-center text-2xl shadow-md shrink-0`}>{sub.icon}</div>
+                            <div className="min-w-0">
+                              <h3 className="text-lg font-bold text-gray-800 truncate">{sub.service}</h3>
+                              <p className="text-gray-500 text-sm">Last billed {getDaysAgo(sub.lastBilled)} · {formatDate(sub.lastBilled)}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xl font-bold text-gray-900">
+                              {formatCurrency(sub.amount, sub.currency)}
+                              {sub.amountIsEstimate && <span className="text-xs text-gray-400 font-normal ml-1">est.</span>}
+                            </div>
+                            <div className="inline-flex items-center gap-2 px-2 py-0.5 mt-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>{sub.status}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Locked subs — blurred, click to upgrade */}
+                  {lockedSubs.length > 0 && (
+                    <div className="relative">
+                      <div className="grid gap-3 locked-blur">
+                        {lockedSubs.slice(0, 3).map((sub, index) => (
+                          <div key={index} className="bg-white border-2 border-gray-100 rounded-xl p-5">
+                            <div className="flex items-center justify-between gap-4 flex-wrap">
+                              <div className="flex items-center gap-4 min-w-0">
+                                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${CATEGORY_COLORS[sub.category]} flex items-center justify-center text-2xl shrink-0`}>{sub.icon}</div>
+                                <div className="min-w-0">
+                                  <h3 className="text-lg font-bold text-gray-800 truncate">{sub.service}</h3>
+                                  <p className="text-gray-500 text-sm">Last billed {getDaysAgo(sub.lastBilled)}</p>
+                                </div>
+                              </div>
+                              <div className="text-xl font-bold text-gray-900">{formatCurrency(sub.amount, sub.currency)}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <button onClick={() => openProModal('see_all_subs')} className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold py-4 px-8 rounded-2xl shadow-xl pro-glow flex items-center gap-3">
+                          <span>🔒</span>
+                          See {lockedSubs.length} more with Pro
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Locked features grid */}
+                  <div className="mt-8 grid md:grid-cols-2 gap-4">
+                    <button onClick={() => openProModal('monthly_rescan')} className="text-left bg-white border-2 border-gray-200 hover:border-amber-400 rounded-xl p-5 transition-all group">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">🔄</span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-bold text-gray-900">Monthly auto-rescan</h4>
+                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">PRO</span>
+                          </div>
+                          <p className="text-sm text-gray-600">Catch new charges the moment they happen.</p>
+                        </div>
+                      </div>
+                    </button>
+                    <button onClick={() => openProModal('cancellation_emails')} className="text-left bg-white border-2 border-gray-200 hover:border-amber-400 rounded-xl p-5 transition-all group">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">✉️</span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-bold text-gray-900">Cancellation emails</h4>
+                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">PRO</span>
+                          </div>
+                          <p className="text-sm text-gray-600">One-click pre-drafted cancellation emails for each service.</p>
+                        </div>
+                      </div>
+                    </button>
+                    <button onClick={() => openProModal('trial_alerts')} className="text-left bg-white border-2 border-gray-200 hover:border-amber-400 rounded-xl p-5 transition-all group">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">⏰</span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-bold text-gray-900">Free-trial alerts</h4>
+                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">PRO</span>
+                          </div>
+                          <p className="text-sm text-gray-600">Get notified 3 days before a trial converts to paid.</p>
+                        </div>
+                      </div>
+                    </button>
+                    <button onClick={() => openProModal('multi_gmail')} className="text-left bg-white border-2 border-gray-200 hover:border-amber-400 rounded-xl p-5 transition-all group">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">📧</span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-bold text-gray-900">Multi-Gmail support</h4>
+                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">PRO</span>
+                          </div>
+                          <p className="text-sm text-gray-600">Combine personal + work Gmails into one report.</p>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Bottom CTA */}
+                  <div className="mt-8 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl p-6 flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex-1 min-w-[260px]">
+                      <h3 className="font-bold text-gray-900 text-lg mb-1">Pro launches soon — 50% off for waitlist</h3>
+                      <p className="text-gray-600 text-sm">First month ₹99 instead of ₹199. Cancel anytime.</p>
+                    </div>
+                    <button onClick={() => openProModal('bottom_cta')} className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold py-3 px-6 rounded-xl shadow whitespace-nowrap pro-glow">
+                      Join the waitlist
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {!loading && subscriptions.length === 0 && !error && !hasScanned && (
+                <div className="text-center text-gray-500 py-12">Click <strong>Start scan</strong> to begin.</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-8 text-center text-white/80 text-sm space-y-2">
+          <p>🔒 Your data never leaves your browser. We use Google's official Gmail API with read & archive permissions only.</p>
+          <div className="flex justify-center gap-4 mt-2">
+            <a href="https://findmysubscriptions.com/privacy.html" className="hover:text-white underline">Privacy Policy</a>
+            <span>•</span>
+            <a href="https://findmysubscriptions.com/terms.html" className="hover:text-white underline">Terms of Service</a>
+          </div>
+          <p className="text-xs mt-2">© 2026 Aagam Technologies. All rights reserved.</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+ReactDOM.render(<SubscriptionScanner />, document.getElementById('root'));
+</script>
 </body>
 </html>
